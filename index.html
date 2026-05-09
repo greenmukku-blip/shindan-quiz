@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>中小企業診断士 1次試験 練習問題</title>
+<script src="questions.js"></script>
+<style>
+  /* ─── リセット & ベース ─── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Meiryo", sans-serif;
+    background: #F0F4F8;
+    color: #1A202C;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ─── ラッパー ─── */
+  .app {
+    width: 100%;
+    max-width: 600px;
+    padding: 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── ヘッダー ─── */
+  header {
+    text-align: center;
+    padding: 20px 0 8px;
+  }
+  header h1 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #2D3748;
+    line-height: 1.4;
+  }
+  header p {
+    font-size: 0.78rem;
+    color: #718096;
+    margin-top: 4px;
+  }
+
+  /* ─── スクリーン共通 ─── */
+  .screen { display: none; flex-direction: column; flex: 1; }
+  .screen.active { display: flex; }
+
+  /* ─── カード ─── */
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    margin-bottom: 12px;
+  }
+
+  /* ─── 科目選択画面 ─── */
+  #screen-home h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #4A5568;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  .subject-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .subject-btn {
+    border: none;
+    border-radius: 12px;
+    padding: 14px 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    line-height: 1.4;
+    text-align: center;
+    transition: transform 0.15s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .subject-btn:active { transform: scale(0.96); }
+  .subject-btn .label { font-size: 0.68rem; font-weight: 400; opacity: 0.85; margin-bottom: 4px; }
+  .all-btn {
+    grid-column: 1 / -1;
+    background: #2D3748;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    transition: transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .all-btn:active { transform: scale(0.97); }
+
+  .stats-area {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .stat-box {
+    background: #EDF2F7;
+    border-radius: 10px;
+    padding: 10px 6px;
+    text-align: center;
+  }
+  .stat-box .stat-num { font-size: 1.4rem; font-weight: 800; color: #2D3748; }
+  .stat-box .stat-label { font-size: 0.68rem; color: #718096; margin-top: 2px; }
+
+  /* ─── クイズ画面 ─── */
+  #screen-quiz { gap: 10px; }
+
+  .progress-bar-wrap {
+    background: #E2E8F0;
+    border-radius: 99px;
+    height: 6px;
+    overflow: hidden;
+    margin-bottom: 2px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: #4299E1;
+    transition: width 0.3s ease;
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    color: #718096;
+  }
+
+  .question-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .subject-tag {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #fff;
+    padding: 3px 10px;
+    border-radius: 99px;
+  }
+  .q-num { font-size: 0.8rem; color: #718096; margin-left: auto; }
+
+  .question-text {
+    font-size: 0.92rem;
+    line-height: 1.7;
+    color: #2D3748;
+    font-weight: 600;
+  }
+
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice-btn {
+    background: #F7FAFC;
+    border: 2px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 13px 14px;
+    font-size: 0.88rem;
+    color: #2D3748;
+    cursor: pointer;
+    text-align: left;
+    line-height: 1.5;
+    transition: border-color 0.15s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .choice-btn:active { background: #EDF2F7; }
+  .choice-key {
+    font-weight: 800;
+    font-size: 0.9rem;
+    min-width: 20px;
+    color: #4A5568;
+  }
+  .choice-btn.correct {
+    background: #F0FFF4;
+    border-color: #38A169;
+    color: #276749;
+  }
+  .choice-btn.incorrect {
+    background: #FFF5F5;
+    border-color: #E53E3E;
+    color: #9B2C2C;
+  }
+  .choice-btn.reveal-correct {
+    background: #F0FFF4;
+    border-color: #38A169;
+  }
+  .choice-btn:disabled { cursor: default; }
+
+  /* ─── 解説 ─── */
+  .explanation-card {
+    background: #FFFBEB;
+    border: 1px solid #F6C740;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 0.84rem;
+    line-height: 1.7;
+    color: #744210;
+    display: none;
+  }
+  .explanation-card.show { display: block; }
+  .explanation-card strong { display: block; margin-bottom: 6px; font-size: 0.9rem; }
+
+  .result-badge {
+    font-size: 1.2rem;
+    font-weight: 800;
+    text-align: center;
+    padding: 10px;
+    border-radius: 12px;
+    display: none;
+  }
+  .result-badge.show { display: block; }
+  .result-badge.ok { background: #F0FFF4; color: #276749; }
+  .result-badge.ng { background: #FFF5F5; color: #9B2C2C; }
+
+  .next-btn {
+    background: #4299E1;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+    display: none;
+    transition: background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .next-btn:active { background: #3182CE; }
+  .next-btn.show { display: block; }
+
+  /* ─── 結果画面 ─── */
+  #screen-result { gap: 12px; }
+
+  .score-circle {
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 4px;
+    border: 8px solid #4299E1;
+  }
+  .score-circle .big { font-size: 2.2rem; font-weight: 800; color: #2D3748; line-height: 1; }
+  .score-circle .sub { font-size: 0.75rem; color: #718096; }
+
+  .result-breakdown { display: flex; flex-direction: column; gap: 8px; }
+  .breakdown-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.84rem;
+  }
+  .breakdown-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .breakdown-name { flex: 1; color: #4A5568; }
+  .breakdown-score { font-weight: 700; color: #2D3748; }
+  .breakdown-bar-wrap {
+    width: 80px; height: 6px; background: #E2E8F0; border-radius: 99px; overflow: hidden;
+  }
+  .breakdown-bar-fill { height: 100%; border-radius: 99px; }
+
+  .action-btns { display: flex; gap: 10px; }
+  .btn-retry {
+    flex: 1;
+    background: #4299E1;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-home {
+    flex: 1;
+    background: #EDF2F7;
+    color: #4A5568;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ─── フッター ─── */
+  footer {
+    text-align: center;
+    font-size: 0.68rem;
+    color: #A0AEC0;
+    padding: 12px 0;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>中小企業診断士<br>1次試験 練習問題</h1>
+    <p>7科目 合計105問</p>
+  </header>
+
+  <!-- ════════════ ホーム画面 ════════════ -->
+  <div id="screen-home" class="screen active">
+    <div class="card">
+      <h2>科目を選択してください</h2>
+      <div class="subject-grid" id="subject-grid">
+        <!-- JavaScriptで生成 -->
+      </div>
+      <button class="all-btn" onclick="startQuiz('all')">🔀 全科目ランダム (10問)</button>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-bottom:12px">📊 これまでの成績</h2>
+      <div class="stats-area">
+        <div class="stat-box">
+          <div class="stat-num" id="stat-total">0</div>
+          <div class="stat-label">累計問題数</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="stat-correct">0</div>
+          <div class="stat-label">正解数</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="stat-rate">—</div>
+          <div class="stat-label">正解率</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ クイズ画面 ════════════ -->
+  <div id="screen-quiz" class="screen">
+    <div style="padding: 4px 0 8px">
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+      <div class="progress-label">
+        <span id="progress-text">0 / 10</span>
+        <span id="score-live">正解: 0</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="question-meta">
+        <span class="subject-tag" id="q-subject-tag"></span>
+        <span class="q-num" id="q-num"></span>
+      </div>
+      <p class="question-text" id="q-text"></p>
+    </div>
+
+    <div class="choices" id="choices"></div>
+
+    <div class="result-badge" id="result-badge"></div>
+    <div class="explanation-card" id="explanation-card">
+      <strong>📖 解説</strong>
+      <span id="explanation-text"></span>
+    </div>
+
+    <button class="next-btn" id="next-btn">次の問題へ →</button>
+  </div>
+
+  <!-- ════════════ 結果画面 ════════════ -->
+  <div id="screen-result" class="screen">
+    <div class="card" style="text-align:center">
+      <h2 style="margin-bottom:16px; font-size:1rem; color:#4A5568">クイズ完了！</h2>
+      <div class="score-circle" id="score-circle">
+        <div class="big" id="final-score">0/10</div>
+        <div class="sub">正解</div>
+      </div>
+      <p id="result-comment" style="margin-top:14px; font-size:0.9rem; font-weight:600;"></p>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-bottom:14px; font-size:0.95rem; color:#4A5568">科目別 結果</h2>
+      <div class="result-breakdown" id="result-breakdown"></div>
+    </div>
+
+    <div class="action-btns">
+      <button class="btn-retry" id="btn-retry">もう一度</button>
+      <button class="btn-home" onclick="goHome()">科目選択へ</button>
+    </div>
+  </div>
+</div>
+
+<footer>© 中小企業診断士1次試験 練習アプリ</footer>
+
+<script>
+// ─── 状態 ───
+let currentQuiz = [];
+let currentIndex = 0;
+let correctCount = 0;
+let answered = false;
+let currentSubjectId = null;
+let sessionBreakdown = {};
+
+// ─── LocalStorage キー ───
+const LS_TOTAL   = 'shindan_total';
+const LS_CORRECT = 'shindan_correct';
+
+// ─── ユーティリティ ───
+function $(id) { return document.getElementById(id); }
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ─── ホーム初期化 ───
+function initHome() {
+  const grid = $('subject-grid');
+  grid.innerHTML = '';
+  SUBJECTS.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'subject-btn';
+    btn.style.background = s.color;
+    btn.innerHTML = `<div class="label">${getSubjectLabel(s.id)}</div>${s.name}`;
+    btn.addEventListener('click', () => startQuiz(s.id));
+    grid.appendChild(btn);
+  });
+  updateStats();
+}
+
+function getSubjectLabel(id) {
+  const map = {
+    economics: '科目A', finance: '科目B', management: '科目C',
+    operations: '科目D', law: '科目E', it: '科目F', sme: '科目G'
+  };
+  return map[id] || '';
+}
+
+function updateStats() {
+  const total   = parseInt(localStorage.getItem(LS_TOTAL)   || '0');
+  const correct = parseInt(localStorage.getItem(LS_CORRECT) || '0');
+  $('stat-total').textContent   = total;
+  $('stat-correct').textContent = correct;
+  $('stat-rate').textContent    = total > 0 ? Math.round(correct / total * 100) + '%' : '—';
+}
+
+// ─── クイズ開始 ───
+function startQuiz(subjectId) {
+  currentSubjectId = subjectId;
+  sessionBreakdown = {};
+  correctCount = 0;
+  currentIndex = 0;
+  answered = false;
+
+  let pool = [];
+  if (subjectId === 'all') {
+    SUBJECTS.forEach(s => {
+      const qs = QUESTIONS[s.id] || [];
+      pool.push(...qs.map(q => ({ ...q, subjectId: s.id, subjectName: s.name, subjectColor: s.color })));
+    });
+  } else {
+    const s = SUBJECTS.find(x => x.id === subjectId);
+    const qs = QUESTIONS[subjectId] || [];
+    pool = qs.map(q => ({ ...q, subjectId: s.id, subjectName: s.name, subjectColor: s.color }));
+  }
+
+  currentQuiz = shuffle(pool).slice(0, 10);
+  showScreen('screen-quiz');
+  renderQuestion();
+}
+
+// ─── 問題描画 ───
+function renderQuestion() {
+  answered = false;
+  const q = currentQuiz[currentIndex];
+  const total = currentQuiz.length;
+
+  // プログレス
+  const pct = (currentIndex / total) * 100;
+  $('progress-fill').style.width = pct + '%';
+  $('progress-text').textContent = `${currentIndex + 1} / ${total}`;
+  $('score-live').textContent = `正解: ${correctCount}`;
+
+  // 科目タグ
+  const tag = $('q-subject-tag');
+  tag.textContent = q.subjectName;
+  tag.style.background = q.subjectColor;
+
+  $('q-num').textContent = `第${currentIndex + 1}問`;
+  $('q-text').textContent = q.question;
+
+  // 選択肢
+  const choicesEl = $('choices');
+  choicesEl.innerHTML = '';
+  Object.entries(q.choices).forEach(([key, val]) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.innerHTML = `<span class="choice-key">${key}</span><span>${val}</span>`;
+    btn.dataset.key = key;
+    btn.addEventListener('click', () => onChoiceClick(key));
+    choicesEl.appendChild(btn);
+  });
+
+  // リセット
+  $('result-badge').className = 'result-badge';
+  $('result-badge').textContent = '';
+  $('explanation-card').className = 'explanation-card';
+  $('next-btn').className = 'next-btn';
+}
+
+// ─── 選択肢クリック ───
+function onChoiceClick(selected) {
+  if (answered) return;
+  answered = true;
+
+  const q = currentQuiz[currentIndex];
+  const isCorrect = selected === q.answer;
+  const subjId = q.subjectId;
+
+  if (!sessionBreakdown[subjId]) {
+    sessionBreakdown[subjId] = { name: q.subjectName, color: q.subjectColor, correct: 0, total: 0 };
+  }
+  sessionBreakdown[subjId].total++;
+
+  if (isCorrect) {
+    correctCount++;
+    sessionBreakdown[subjId].correct++;
+  }
+
+  // ボタン色付け
+  document.querySelectorAll('.choice-btn').forEach(btn => {
+    btn.disabled = true;
+    if (btn.dataset.key === q.answer) btn.classList.add('reveal-correct');
+    if (btn.dataset.key === selected && !isCorrect) btn.classList.add('incorrect');
+    if (btn.dataset.key === selected && isCorrect)  btn.classList.add('correct');
+  });
+
+  // 結果バッジ
+  const badge = $('result-badge');
+  badge.className = 'result-badge show ' + (isCorrect ? 'ok' : 'ng');
+  badge.textContent = isCorrect ? '⭕ 正解！' : `❌ 不正解（正解：${q.answer}）`;
+
+  // 解説
+  $('explanation-text').textContent = q.explanation;
+  $('explanation-card').className = 'explanation-card show';
+
+  // 次へボタン
+  const nextBtn = $('next-btn');
+  nextBtn.className = 'next-btn show';
+  const isLast = currentIndex === currentQuiz.length - 1;
+  nextBtn.textContent = isLast ? '結果を見る 📊' : '次の問題へ →';
+
+  // スコアバー更新
+  $('score-live').textContent = `正解: ${correctCount}`;
+}
+
+// ─── 次へ ───
+$('next-btn').addEventListener('click', () => {
+  if (!answered) return;
+  currentIndex++;
+  if (currentIndex >= currentQuiz.length) {
+    showResult();
+  } else {
+    renderQuestion();
+  }
+});
+
+// ─── 結果表示 ───
+function showResult() {
+  const total = currentQuiz.length;
+  const pct = Math.round(correctCount / total * 100);
+
+  // スコア更新
+  $('final-score').textContent = `${correctCount}/${total}`;
+  const circle = $('score-circle');
+  if (pct >= 70) circle.style.borderColor = '#38A169';
+  else if (pct >= 50) circle.style.borderColor = '#D69E2E';
+  else circle.style.borderColor = '#E53E3E';
+
+  // コメント
+  const comments = [
+    [90, '🏆 素晴らしい！完璧に近い正解率です！'],
+    [70, '👏 合格ライン突破！この調子で頑張りましょう！'],
+    [50, '📚 もう少し！苦手科目を重点的に復習しよう！'],
+    [0,  '💪 諦めないで！繰り返し練習が合格への近道！'],
+  ];
+  const comment = comments.find(([min]) => pct >= min);
+  $('result-comment').textContent = comment[1];
+
+  // 科目別内訳
+  const bdEl = $('result-breakdown');
+  bdEl.innerHTML = '';
+  Object.values(sessionBreakdown).forEach(s => {
+    const sPct = s.total > 0 ? Math.round(s.correct / s.total * 100) : 0;
+    const row = document.createElement('div');
+    row.className = 'breakdown-row';
+    row.innerHTML = `
+      <div class="breakdown-dot" style="background:${s.color}"></div>
+      <div class="breakdown-name">${s.name}</div>
+      <div class="breakdown-bar-wrap">
+        <div class="breakdown-bar-fill" style="width:${sPct}%; background:${s.color}"></div>
+      </div>
+      <div class="breakdown-score">${s.correct}/${s.total}</div>
+    `;
+    bdEl.appendChild(row);
+  });
+
+  // LocalStorage 保存
+  const prevTotal   = parseInt(localStorage.getItem(LS_TOTAL)   || '0');
+  const prevCorrect = parseInt(localStorage.getItem(LS_CORRECT) || '0');
+  localStorage.setItem(LS_TOTAL,   prevTotal   + total);
+  localStorage.setItem(LS_CORRECT, prevCorrect + correctCount);
+
+  // もう一度ボタン
+  $('btn-retry').onclick = () => startQuiz(currentSubjectId);
+
+  showScreen('screen-result');
+}
+
+// ─── ホームへ戻る ───
+function goHome() {
+  updateStats();
+  showScreen('screen-home');
+}
+
+// ─── 初期化 ───
+initHome();
+</script>
+</body>
+</html>
