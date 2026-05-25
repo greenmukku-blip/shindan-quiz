@@ -215,7 +215,90 @@
     display: none;
   }
   .explanation-card.show { display: block; }
-  .explanation-card strong { display: block; margin-bottom: 6px; font-size: 0.9rem; }
+  .explanation-card > .expl-header { display: block; margin-bottom: 10px; font-size: 0.9rem; font-weight: 700; }
+
+  /* 答え比較エリア */
+  .answer-compare {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .your-answer-row, .correct-answer-row {
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.83rem;
+    line-height: 1.5;
+  }
+  .your-answer-row {
+    background: #FFF5F5;
+    border: 1px solid #FC8181;
+    color: #9B2C2C;
+  }
+  .correct-answer-row {
+    background: #F0FFF4;
+    border: 1px solid #68D391;
+    color: #276749;
+  }
+  .answer-label {
+    font-weight: 700;
+    font-size: 0.78rem;
+    margin-bottom: 2px;
+    opacity: 0.8;
+  }
+
+  /* 解説本文 */
+  .expl-body {
+    background: rgba(255,255,255,0.6);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    font-size: 0.83rem;
+    line-height: 1.7;
+    color: #5C4A1E;
+    border-left: 3px solid #ECC94B;
+  }
+
+  /* 全選択肢一覧 */
+  .choices-breakdown {
+    margin-top: 8px;
+  }
+  .choices-breakdown-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #92763A;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .expl-choice-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 6px 10px;
+    border-radius: 7px;
+    margin-bottom: 4px;
+    font-size: 0.81rem;
+    line-height: 1.5;
+    color: #5C4A1E;
+    background: rgba(255,255,255,0.4);
+  }
+  .expl-choice-row.is-correct {
+    background: #F0FFF4;
+    border: 1px solid #9AE6B4;
+    color: #276749;
+    font-weight: 600;
+  }
+  .expl-choice-row.is-selected-wrong {
+    background: #FFF5F5;
+    border: 1px solid #FEB2B2;
+    color: #9B2C2C;
+  }
+  .expl-choice-key {
+    font-weight: 800;
+    min-width: 18px;
+    font-size: 0.85rem;
+  }
 
   .result-badge {
     font-size: 1.2rem;
@@ -375,8 +458,8 @@
 
     <div class="result-badge" id="result-badge"></div>
     <div class="explanation-card" id="explanation-card">
-      <strong>📖 解説</strong>
-      <span id="explanation-text"></span>
+      <span class="expl-header">📖 解説</span>
+      <div id="explanation-content"></div>
     </div>
 
     <button class="next-btn" id="next-btn">次の問題へ →</button>
@@ -408,6 +491,15 @@
 <footer>© 中小企業診断士1次試験 練習アプリ</footer>
 
 <script>
+// ─── ユーティリティ（HTML エスケープ）───
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 // ─── 状態 ───
 let currentQuiz = [];
 let currentIndex = 0;
@@ -564,8 +656,43 @@ function onChoiceClick(selected) {
   badge.className = 'result-badge show ' + (isCorrect ? 'ok' : 'ng');
   badge.textContent = isCorrect ? '⭕ 正解！' : `❌ 不正解（正解：${q.answer}）`;
 
-  // 解説
-  $('explanation-text').textContent = q.explanation;
+  // ─── 解説コンテンツ構築 ───
+  let explHtml = '';
+
+  // ① 答え比較（不正解時は選んだ答えも表示）
+  if (!isCorrect) {
+    const selText = q.choices[selected] || '';
+    const corrText = q.choices[q.answer] || '';
+    explHtml += `<div class="answer-compare">
+      <div class="your-answer-row">
+        <div class="answer-label">あなたの回答 ${selected}</div>
+        <div>${escHtml(selText)}</div>
+      </div>
+      <div class="correct-answer-row">
+        <div class="answer-label">✅ 正解 ${q.answer}</div>
+        <div>${escHtml(corrText)}</div>
+      </div>
+    </div>`;
+  }
+
+  // ② 解説本文（データがある場合）
+  if (q.explanation && q.explanation.trim()) {
+    explHtml += `<div class="expl-body">${escHtml(q.explanation)}</div>`;
+  }
+
+  // ③ 全選択肢一覧
+  explHtml += `<div class="choices-breakdown">
+    <div class="choices-breakdown-title">各選択肢</div>`;
+  Object.entries(q.choices).forEach(([key, val]) => {
+    let cls = 'expl-choice-row';
+    let mark = '';
+    if (key === q.answer) { cls += ' is-correct'; mark = ' ✅'; }
+    else if (key === selected && !isCorrect) { cls += ' is-selected-wrong'; mark = ' ←あなたの回答'; }
+    explHtml += `<div class="${cls}"><span class="expl-choice-key">${key}</span><span>${escHtml(val)}${mark}</span></div>`;
+  });
+  explHtml += `</div>`;
+
+  $('explanation-content').innerHTML = explHtml;
   $('explanation-card').className = 'explanation-card show';
 
   // 次へボタン
