@@ -1,0 +1,1023 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>因子スタンプメーカー</title>
+<style>
+:root{
+  --bg:#f4f6f1; --card:#ffffff; --text:#1f2a1c; --muted:#5d6b58; --line:#d9e0d3;
+  --accent:#4fae2c; --accent-ink:#ffffff; --accent-soft:#e5f4dc; --warn:#b5541b; --warn-soft:#fdecc8;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141812; --card:#1d231a; --text:#e8eee4; --muted:#9fae98; --line:#33402e;
+    --accent:#6cc94a; --accent-ink:#0f1a0b; --accent-soft:#25351e; --warn:#f0a070; --warn-soft:#4a3a17;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141812; --card:#1d231a; --text:#e8eee4; --muted:#9fae98; --line:#33402e;
+  --accent:#6cc94a; --accent-ink:#0f1a0b; --accent-soft:#25351e; --warn:#f0a070; --warn-soft:#4a3a17;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.6}
+main{max-width:640px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.5rem;margin:0 0 4px}
+h2{font-size:1.05rem;margin:0 0 10px}
+p.lead{margin:0 0 16px;color:var(--muted);font-size:.92rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  border:2px dashed var(--accent);border-radius:12px;padding:22px 12px;text-align:center;cursor:pointer;
+  background:var(--accent-soft);font-weight:600}
+.drop small{font-weight:400;color:var(--muted)}
+.drop.over{border-style:solid;background:var(--card);outline:3px solid var(--accent-soft)}
+body.dragging .drop{border-style:solid}
+.drop input{display:none}
+#fileName{margin-top:8px;font-size:.88rem;color:var(--muted);word-break:break-all}
+details{margin-top:12px;font-size:.92rem}
+summary{cursor:pointer;color:var(--muted)}
+#adjust[open] summary{margin-bottom:8px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0}
+.row input[type=number],.row select{width:110px;padding:6px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--text);font-size:.95rem}
+label.chk{display:flex;gap:8px;align-items:center;margin:8px 0}
+button,.btn{appearance:none;border:0;border-radius:10px;padding:12px 16px;font-size:1rem;font-weight:700;
+  background:var(--accent);color:var(--accent-ink);cursor:pointer;text-decoration:none;display:inline-block;text-align:center}
+button.sub,.btn.sub{background:transparent;color:var(--text);border:1px solid var(--line)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.wide{width:100%;margin-top:14px}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.btns>*{flex:1 1 140px}
+#status{margin-top:10px;font-size:.9rem;color:var(--muted);min-height:1.4em}
+#status.err{color:var(--warn)}
+progress{width:100%;height:8px;margin-top:6px;accent-color:var(--accent)}
+.preview-wrap{position:relative;max-width:260px;margin:0 auto}
+#preview{width:100%;display:block;border-radius:8px;border:1px solid var(--line)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+#outImg{width:100%;display:block;border-radius:8px;border:1px solid var(--line);background:#fff}
+.note{font-size:.84rem;color:var(--muted);margin:8px 0 0}
+ol.how{padding-left:1.3em;margin:6px 0 0;font-size:.9rem}
+.xl-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.xl-actions>*{flex:1 1 150px}
+.table-wrap{overflow-x:auto;margin-top:12px;border:1px solid var(--line);border-radius:10px;max-height:60vh;overflow-y:auto}
+table.xl{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums}
+table.xl th,table.xl td{border-bottom:1px solid var(--line);padding:4px 3px;text-align:left;white-space:nowrap}
+table.xl th{position:sticky;top:0;background:var(--card);z-index:1;font-size:.8rem;color:var(--muted)}
+table.xl input,table.xl select{font:inherit;color:var(--text);background:transparent;border:1px solid transparent;border-radius:6px;padding:3px 4px}
+table.xl input:focus,table.xl select:focus{border-color:var(--accent);outline:none;background:var(--bg)}
+table.xl input.name{width:13em}
+table.xl input.star{width:2.6em;text-align:center}
+table.xl tr.unsure td{background:var(--warn-soft)}
+table.xl .del{background:none;border:0;color:var(--muted);padding:2px 6px;font-size:1rem;cursor:pointer}
+.legend{font-size:.82rem;color:var(--muted);margin-top:8px}
+.legend span{background:var(--warn-soft);padding:0 4px;border-radius:4px}
+</style>
+</head>
+<body>
+<main>
+  <h1>因子スタンプメーカー</h1>
+  <p class="lead">継承タブをスクロールした画面録画（またはスクショ数枚）から、因子一覧を1枚の縦長画像にまとめます。処理は全部この端末の中で行い、どこにもアップロードしません。</p>
+
+  <section class="card">
+    <label class="drop">
+      <input type="file" id="file" accept="video/*,image/*" multiple>
+      <span>動画 または スクショを選ぶ</span>
+      <small>ここにドラッグ＆ドロップしてもOK<br>画面録画1本、または少しずつ重なったスクショ複数枚</small>
+    </label>
+    <div id="fileName"></div>
+
+    <details>
+      <summary>詳細設定</summary>
+      <div class="row"><span>動画の取り込み間隔（秒）</span><input type="number" id="interval" value="0.1" step="0.02" min="0.04" max="1"></div>
+      <div class="row"><span>出力画像の幅（px）</span>
+        <select id="outW"><option>540</option><option selected>720</option><option>900</option><option>1080</option></select></div>
+      <label class="chk"><input type="checkbox" id="keepHeader" checked>上の固定部分（ステータス欄など）を残す</label>
+      <label class="chk"><input type="checkbox" id="keepFooter">下の固定部分（ボタンなど）を残す</label>
+      <label class="chk"><input type="checkbox" id="cutTail" checked>因子一覧の下（継承履歴など）をカットする</label>
+    </details>
+
+    <button id="run" class="wide" disabled>画像を作る</button>
+    <progress id="prog" max="1" value="0" hidden></progress>
+    <div id="status"></div>
+  </section>
+
+  <section class="card" id="result" hidden>
+    <h2>できあがり</h2>
+    <img id="outImg" alt="つなげた因子一覧の画像">
+    <div class="btns">
+      <a id="dl" class="btn" download="inshi_stamp.png">保存する</a>
+      <button id="share" class="sub" hidden>共有する</button>
+    </div>
+    <p class="note">iPhoneで「保存する」がうまくいかないときは、画像を長押しして「"写真"に保存」を選んでください。</p>
+  </section>
+
+  <section class="card" id="excel" hidden>
+    <h2>Excelにする</h2>
+    <p class="note">画像から因子名と★の数を読み取って表にします。読み取りは端末の中で行います（初回だけ文字認識データ数MBを読み込みます）。</p>
+    <button id="ocrRun" class="wide">因子を読み取る</button>
+    <div id="xlArea" hidden>
+      <p class="legend"><span>色つきの行</span>は読み取りに自信がない行です。名前や★を直してから出力してください。</p>
+      <div class="table-wrap"><table class="xl" id="xlTable">
+        <thead><tr><th>持ち主</th><th>種類</th><th>★</th><th>因子名</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="xl-actions">
+        <button id="xlDl">Excelでダウンロード</button>
+        <button id="xlCopy" class="sub">表をコピー</button>
+      </div>
+      <p class="note">Excelには「因子一覧」と、因子ごとに自前・継承元・合計を並べた「集計」の2シートが入ります。</p>
+    </div>
+  </section>
+
+  <details class="card" id="adjust" hidden>
+    <summary>つなぎ目がずれたとき（範囲を手動で調整）</summary>
+    <p class="note">緑の線の間がスクロールする部分です。ずれる・上下が欠けるときは動かして「作り直す」を押してください。</p>
+    <div class="preview-wrap"><canvas id="preview"></canvas></div>
+    <div class="row"><span>上端</span><span id="topVal"></span></div>
+    <input type="range" id="topR" min="0" max="100" value="0">
+    <div class="row"><span>下端</span><span id="botVal"></span></div>
+    <input type="range" id="botR" min="0" max="100" value="100">
+    <button id="rerun" class="wide sub">この範囲で作り直す</button>
+  </details>
+
+  <section class="card">
+    <h2>使い方</h2>
+    <ol class="how">
+      <li>ゲームでウマ娘詳細の「継承」タブを開く</li>
+      <li>画面録画を開始して、一番上から一番下までゆっくりスクロールする（指を離して止めながらでもOK）</li>
+      <li>録画した動画をここで選んで「画像を作る」</li>
+    </ol>
+    <p class="note">速くスクロールしすぎると、つなぎ目を見つけられないことがあります。うまくいかないときは、ゆっくり撮り直すか、少しずつ重なるスクショを複数枚選んでください。</p>
+  </section>
+</main>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const BLOCKS = 64;              // 1行を何ブロックに分けて比べるか
+const MAX_FRAMES = 400;
+
+let src = null;                 // {kind, count, W, H, draw(i, ctx)}
+let sigs = [];                  // 取り込んだフレームの行シグネチャ
+let frameIdx = [];              // sigs[k] が元の何フレーム目か
+let region = null;              // {top, bot}
+let resultUrl = null, resultBlob = null, lastCanvas = null;
+
+const status = (msg, err) => { const s = $('status'); s.textContent = msg; s.className = err ? 'err' : ''; };
+const prog = v => { const p = $('prog'); if (v == null) { p.hidden = true; } else { p.hidden = false; p.value = v; } };
+const tick = () => new Promise(r => setTimeout(r, 0));
+
+let picked = [];
+function setFiles(fs) {
+  fs = fs.filter(f => /^(video|image)\//.test(f.type) || /\.(mov|mp4|m4v|webm|png|jpe?g|webp|heic)$/i.test(f.name));
+  if (!fs.length) { status('動画か画像のファイルを選んでください。', true); return; }
+  picked = fs;
+  $('fileName').textContent = fs.length === 1 ? fs[0].name : `${fs.length}個のファイル`;
+  $('run').disabled = false;
+  $('adjust').hidden = true; $('result').hidden = true; $('excel').hidden = true;
+  status('');
+}
+$('file').addEventListener('change', e => setFiles([...e.target.files]));
+
+// ドラッグ＆ドロップ（ページのどこに落としてもOK）
+const dropBox = document.querySelector('.drop');
+let dragDepth = 0;
+const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+window.addEventListener('dragenter', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); dragDepth++;
+  document.body.classList.add('dragging'); dropBox.classList.add('over');
+});
+window.addEventListener('dragover', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+});
+window.addEventListener('dragleave', e => {
+  if (!hasFiles(e)) return;
+  if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dragging'); dropBox.classList.remove('over'); }
+});
+window.addEventListener('drop', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); dragDepth = 0;
+  document.body.classList.remove('dragging'); dropBox.classList.remove('over');
+  setFiles([...e.dataTransfer.files]);
+});
+
+$('run').addEventListener('click', async () => {
+  const fs = picked;
+  if (!fs.length) return;
+  $('run').disabled = true;
+  try {
+    src = await openSource(fs);
+    await analyze();
+    region = detectRegion();
+    await setupAdjust();
+    await compose();
+  } catch (err) {
+    console.error(err);
+    status(err.message || String(err), true);
+  } finally {
+    $('run').disabled = false; prog(null);
+  }
+});
+
+$('rerun').addEventListener('click', async () => {
+  if (!src) return;
+  $('rerun').disabled = true;
+  try {
+    const t = +$('topR').value, b = +$('botR').value;
+    if (b - t < 40) throw new Error('上端と下端が近すぎます。');
+    region = { top: t, bot: b };
+    await compose();
+  } catch (err) { status(err.message, true); }
+  finally { $('rerun').disabled = false; prog(null); }
+});
+
+// ---------- 入力（動画 / 画像）----------
+async function openSource(fs) {
+  const outW = +$('outW').value;
+  const video = fs.find(f => f.type.startsWith('video/') || /\.(mov|mp4|m4v|webm)$/i.test(f.name));
+  if (video) {
+    if (fs.length > 1) status('動画が含まれているので、その1本だけを使います。');
+    return openVideo(video, outW);
+  }
+  return openImages(fs, outW);
+}
+
+async function openVideo(file, outW) {
+  status('動画を読み込んでいます…');
+  const v = document.createElement('video');
+  v.muted = true; v.playsInline = true; v.preload = 'auto';
+  v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
+  v.src = URL.createObjectURL(file);
+  await new Promise((res, rej) => {
+    v.onloadedmetadata = res;
+    v.onerror = () => rej(new Error('この動画は読み込めませんでした。別の形式（MP4など）で試してください。'));
+  });
+  // iOS Safari は一度再生しないとフレームを描けないことがある
+  try { await v.play(); v.pause(); } catch (_) {}
+  const dur = v.duration;
+  if (!isFinite(dur) || dur <= 0) throw new Error('動画の長さを取得できませんでした。');
+  let step = Math.max(0.04, +$('interval').value || 0.1);
+  if (dur / step > MAX_FRAMES) step = dur / MAX_FRAMES;
+  const times = [];
+  for (let t = 0; t < dur - 0.02; t += step) times.push(t);
+  times.push(Math.max(0, dur - 0.05));
+  const W = outW, H = Math.round(v.videoHeight * outW / v.videoWidth);
+  const seek = t => new Promise(r => {
+    const h = () => { v.removeEventListener('seeked', h); r(); };
+    v.addEventListener('seeked', h);
+    v.currentTime = t;
+  });
+  return {
+    kind: 'video', count: times.length, W, H,
+    async draw(i, ctx) { await seek(times[i]); ctx.drawImage(v, 0, 0, W, H); }
+  };
+}
+
+async function openImages(fs, outW) {
+  status('画像を読み込んでいます…');
+  fs.sort((a, b) => a.name.localeCompare(b.name, 'ja', { numeric: true }));
+  const imgs = [];
+  for (const f of fs) {
+    const bmp = await createImageBitmap(f).catch(() => null);
+    if (!bmp) throw new Error(`${f.name} を読み込めませんでした。`);
+    imgs.push(bmp);
+  }
+  const W = outW, H = Math.round(imgs[0].height * outW / imgs[0].width);
+  return {
+    kind: 'image', count: imgs.length, W, H,
+    async draw(i, ctx) { ctx.drawImage(imgs[i], 0, 0, W, H); }
+  };
+}
+
+// ---------- 解析 ----------
+function makeCanvas(w, h) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  return c;
+}
+
+function signature(data, W, H) {
+  // 各行を BLOCKS 個の区間に分け、区間ごとの明るさ平均を持つ
+  const sig = new Uint8Array(H * BLOCKS);
+  const bw = W / BLOCKS;
+  for (let y = 0; y < H; y++) {
+    const rowOff = y * W * 4;
+    for (let b = 0; b < BLOCKS; b++) {
+      const x0 = Math.floor(b * bw), x1 = Math.floor((b + 1) * bw);
+      let s = 0;
+      for (let x = x0; x < x1; x++) {
+        const p = rowOff + x * 4;
+        s += data[p] * 0.299 + data[p + 1] * 0.587 + data[p + 2] * 0.114;
+      }
+      sig[y * BLOCKS + b] = s / (x1 - x0);
+    }
+  }
+  return sig;
+}
+
+function meanDiff(a, b) {
+  let s = 0;
+  for (let i = 0; i < a.length; i += 7) s += Math.abs(a[i] - b[i]);
+  return s / Math.ceil(a.length / 7);
+}
+
+async function analyze() {
+  const { W, H, count } = src;
+  const c = makeCanvas(W, H), ctx = c.getContext('2d', { willReadFrequently: true });
+  sigs = []; frameIdx = [];
+  for (let i = 0; i < count; i++) {
+    await src.draw(i, ctx);
+    const sig = signature(ctx.getImageData(0, 0, W, H).data, W, H);
+    // 止まっていて前と同じ画面なら捨てる
+    if (sigs.length && meanDiff(sig, sigs[sigs.length - 1]) < 0.4) {
+      if (i === count - 1) { sigs[sigs.length - 1] = sig; frameIdx[frameIdx.length - 1] = i; }
+      continue;
+    }
+    sigs.push(sig); frameIdx.push(i);
+    status(`画面を読み取り中… ${i + 1}/${count}`);
+    prog((i + 1) / count * 0.6);
+    if (i % 4 === 0) await tick();
+  }
+  if (sigs.length < 2 && src.kind === 'video') throw new Error('動画の中で画面が動いていないようです。');
+}
+
+function detectRegion() {
+  const { H } = src;
+  if (sigs.length < 2) return { top: 0, bot: H };
+  // 行ごとに「フレーム間でどれだけ変化したか」を集計
+  const act = new Float32Array(H);
+  for (let k = 1; k < sigs.length; k++) {
+    const a = sigs[k - 1], b = sigs[k];
+    for (let y = 0; y < H; y++) {
+      let s = 0;
+      for (let x = 0; x < BLOCKS; x++) s += Math.abs(a[y * BLOCKS + x] - b[y * BLOCKS + x]);
+      act[y] += s / BLOCKS;
+    }
+  }
+  for (let y = 0; y < H; y++) act[y] /= (sigs.length - 1);
+  const sorted = [...act].sort((p, q) => p - q);
+  const thr = Math.max(1.0, sorted[Math.floor(H * 0.9)] * 0.12);
+  // 変化した行の一番長いかたまり（小さな切れ目は無視）を採用
+  const gapMax = Math.round(H * 0.06);
+  let best = null, start = -1, lastActive = -1;
+  for (let y = 0; y <= H; y++) {
+    const on = y < H && act[y] > thr;
+    if (on) {
+      if (start < 0 || y - lastActive > gapMax) {
+        if (start >= 0 && (!best || lastActive + 1 - start > best.bot - best.top)) best = { top: start, bot: lastActive + 1 };
+        start = y;
+      }
+      lastActive = y;
+    }
+  }
+  if (start >= 0 && (!best || lastActive + 1 - start > best.bot - best.top)) best = { top: start, bot: lastActive + 1 };
+  if (!best || best.bot - best.top < H * 0.15) return { top: 0, bot: H };
+  return best;
+}
+
+// A の (y+dy) 行と B の y 行を比べたときのズレ量
+function cost(A, B, top, bot, dy, yStep, bStep) {
+  let s = 0, n = 0;
+  for (let y = top; y + dy < bot; y += yStep) {
+    const ia = (y + dy) * BLOCKS, ib = y * BLOCKS;
+    for (let x = 0; x < BLOCKS; x += bStep) { s += Math.abs(A[ia + x] - B[ib + x]); n++; }
+  }
+  return n ? s / n : Infinity;
+}
+
+function findOffset(A, B, top, bot) {
+  const h = bot - top;
+  // スクショは1枚ごとの移動が大きいので広めに探す（最低でも1割は重なっている前提）
+  const maxDy = Math.floor(h * (src.kind === 'image' ? 0.9 : 0.75));
+  let best = 0, bestC = Infinity;
+  for (let dy = 0; dy <= maxDy; dy += 2) {
+    const c = cost(A, B, top, bot, dy, 3, 2);
+    // 重なりが小さいほど偶然一致しやすいので、わずかに不利にする
+    const pen = c + dy / h * 0.6;
+    if (pen < bestC) { bestC = pen; best = dy; }
+  }
+  let fine = best, fineC = Infinity;
+  for (let dy = Math.max(0, best - 3); dy <= Math.min(maxDy, best + 3); dy++) {
+    const c = cost(A, B, top, bot, dy, 1, 1);
+    if (c < fineC) { fineC = c; fine = dy; }
+  }
+  return { dy: fine, c: fineC };
+}
+
+// ---------- 合成 ----------
+async function compose() {
+  const { W, H } = src;
+  const { top, bot } = region;
+  const rh = bot - top;
+  // 取り込んだ順に、直前に採用した画面からのスクロール量を求める
+  const used = [{ k: 0, Y: 0 }];
+  let ref = 0, skipped = 0;
+  for (let k = 1; k < sigs.length; k++) {
+    const { dy, c } = findOffset(sigs[ref], sigs[k], top, bot);
+    if (c > 3) { skipped++; continue; }       // 一致しない（速すぎ・演出中など）
+    if (dy < 2) continue;                      // ほぼ動いていない
+    used.push({ k, Y: used[used.length - 1].Y + dy, d: dy });
+    ref = k;
+    if (k % 5 === 0) { status(`つなぎ目を探しています… ${k}/${sigs.length}`); prog(0.6 + k / sigs.length * 0.25); await tick(); }
+  }
+
+  const keepHeader = $('keepHeader').checked, keepFooter = $('keepFooter').checked;
+  const headH = keepHeader ? top : 0;
+  const footH = keepFooter ? H - bot : 0;
+  const last = used[used.length - 1];
+  let outH = headH + last.Y + rh + footH;
+  // ブラウザのキャンバス上限に収める
+  const limitArea = 16_000_000, limitH = 16_000;
+  const scale = Math.min(1, limitH / outH, Math.sqrt(limitArea / (W * outH)));
+  const out = makeCanvas(Math.round(W * scale), Math.round(outH * scale));
+  const octx = out.getContext('2d');
+  octx.scale(scale, scale);
+  octx.imageSmoothingQuality = 'high';
+
+  const fc = makeCanvas(W, H), fctx = fc.getContext('2d');
+  // 範囲の下端すれすれは境目の色が混ざりやすいので、少し内側で継ぐ
+  const m = Math.min(6, Math.floor(rh / 10));
+  for (let u = 0; u < used.length; u++) {
+    const { k, Y, d } = used[u];
+    const isLast = u === used.length - 1;
+    const tail = isLast ? 0 : m;
+    await src.draw(frameIdx[k], fctx);
+    if (u === 0) {
+      if (headH) octx.drawImage(fc, 0, 0, W, top, 0, 0, W, top);
+      octx.drawImage(fc, 0, top, W, rh - tail, 0, headH, W, rh - tail);
+    } else {
+      // 新しく見えた下の部分だけを足す
+      const h = d + m - tail;
+      octx.drawImage(fc, 0, bot - m - d, W, h, 0, headH + Y + rh - m - d, W, h);
+    }
+    if (u === used.length - 1 && footH) {
+      octx.drawImage(fc, 0, bot, W, footH, 0, headH + last.Y + rh, W, footH);
+    }
+    status(`画像を組み立てています… ${u + 1}/${used.length}`);
+    prog(0.85 + (u + 1) / used.length * 0.15);
+    if (u % 3 === 0) await tick();
+  }
+
+  let finalCanvas = out, cut = false;
+  if ($('cutTail').checked) {
+    const y = findTailCut(out);
+    if (y) {
+      finalCanvas = makeCanvas(out.width, y);
+      finalCanvas.getContext('2d').drawImage(out, 0, 0);
+      cut = true;
+    }
+  }
+  lastCanvas = finalCanvas;
+  $('excel').hidden = false; $('xlArea').hidden = true;
+  resultBlob = await new Promise(r => finalCanvas.toBlob(r, 'image/png'));
+  if (resultUrl) URL.revokeObjectURL(resultUrl);
+  resultUrl = URL.createObjectURL(resultBlob);
+  $('outImg').src = resultUrl;
+  $('dl').href = resultUrl;
+  const file = new File([resultBlob], 'inshi_stamp.png', { type: 'image/png' });
+  $('share').hidden = !(navigator.canShare && navigator.canShare({ files: [file] }));
+  $('result').hidden = false;
+  let msg = `完成しました（${used.length}枚の画面をつなぎました${scale < 1 ? '。長すぎたので少し縮小しています' : ''}）。`;
+  if (src.kind === 'image' && skipped) msg = `${skipped}枚のスクショは前の画像との重なりが見つからず、使えませんでした。前の画像と3割くらい重なるように撮ってください。`;
+  else if (src.kind === 'video' && used.length < 2) msg = 'スクロールを見つけられませんでした。下の「つなぎ目がずれたとき」で範囲を調整するか、ゆっくり撮り直してください。';
+  else if (skipped > used.length) msg += ' つなげなかった画面が多めです。ずれていたら、もう少しゆっくりスクロールして撮り直してください。';
+  if (cut) msg += ' 下の継承履歴はカットしました。';
+  const failed = used.length < 2 || (src.kind === 'image' && skipped > 0);
+  $('adjust').open = failed;
+  status(msg, failed);
+  $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+$('share').addEventListener('click', async () => {
+  if (!resultBlob) return;
+  const file = new File([resultBlob], 'inshi_stamp.png', { type: 'image/png' });
+  try { await navigator.share({ files: [file] }); } catch (_) {}
+});
+
+// 因子一覧の下にある緑の見出し帯（「継承履歴」）を探し、その手前の高さを返す
+function findTailCut(canvas) {
+  const W = canvas.width, H = canvas.height;
+  const data = canvas.getContext('2d').getImageData(0, 0, W, H).data;
+  const isBar = y => {
+    let n = 0;
+    for (let x = 0; x < W; x += 2) {
+      const p = (y * W + x) * 4, r = data[p], g = data[p + 1], b = data[p + 2];
+      if (g > 150 && g - r > 35 && g - b > 60) n++;
+    }
+    return n / Math.ceil(W / 2) > 0.6;
+  };
+  let runEnd = -1, len = 0;
+  // 下から上へ探し、画像の下半分にある最後の帯を見つける
+  for (let y = H - 1; y > H * 0.5; y--) {
+    if (isBar(y)) {
+      if (runEnd < 0) runEnd = y;
+      len++;
+    } else if (runEnd >= 0) {
+      if (len >= 4) return Math.max(1, y - 2);
+      runEnd = -1; len = 0;
+    }
+  }
+  return 0;
+}
+
+
+// ================= Excel化（因子の読み取り）=================
+const OWNERS = ['自前', '継承元1', '継承元2'];
+const KINDS = { blue: '青', pink: '赤', green: '緑', white: '白' };
+const DICT = {
+  青: ['スピード', 'スタミナ', 'パワー', '根性', '賢さ'],
+  赤: ['芝', 'ダート', '短距離', 'マイル', '中距離', '長距離', '逃げ', '先行', '差し', '追込'],
+  白: [
+    // シナリオ因子
+    'アオハル点火・速', 'アオハル点火・体', 'アオハル点火・力', 'アオハル点火・根', 'アオハル点火・賢',
+    'レースの真髄・速', 'レースの真髄・体', 'レースの真髄・力', 'レースの真髄・根', 'レースの真髄・賢', 'レースの真髄・心',
+    '前だけ見据えて', '綺羅星', '夢の途中', '海の加護', '本気で休んで、もう一度', '時代を変える者',
+    '如才なし', '恩返し、召し上がれ', 'いつまでも健やかに', '彼方の呼び声',
+    // レース
+    'フェブラリーS', '高松宮記念', '大阪杯', '桜花賞', '皐月賞', '天皇賞（春）', 'NHKマイルC', 'ヴィクトリアマイル',
+    'オークス', '日本ダービー', '安田記念', '宝塚記念', 'スプリンターズS', '秋華賞', '菊花賞', '天皇賞（秋）',
+    'エリザベス女王杯', 'マイルCS', 'ジャパンC', 'チャンピオンズC', '阪神JF', '朝日杯FS', '有馬記念', 'ホープフルS',
+    '帝王賞', 'JDダービー', 'ジャパンダートクラシック', 'JBCクラシック', 'JBCスプリント', 'JBCレディスクラシック',
+    '東京大賞典', '川崎記念', 'かしわ記念', 'マイルCS南部杯', '全日本2歳優駿', 'URAファイナルズ',
+    // よく見るスキル・因子
+    'ダートの遺伝子', '芝の遺伝子', 'スピードの目覚め', 'スタミナの目覚め', 'パワーの目覚め', '根性の目覚め', '賢さの目覚め',
+    '春の目覚め', '夏の目覚め', '秋の目覚め', '冬の目覚め', '西の雄', '東の雄',
+    '右回り○', '左回り○', '根幹距離○', '非根幹距離○', '良バ場○', '道悪○', '晴れの日○', '曇りの日○', '雨の日○', '雪の日○',
+    '春ウマ娘○', '夏ウマ娘○', '秋ウマ娘○', '冬ウマ娘○', '東京レース場○', '中山レース場○', '阪神レース場○', '京都レース場○',
+    '徹底マーク○', '先行直線○', '先行コーナー○', '逃げ直線○', '逃げコーナー○', '差し直線○', '差しコーナー○', '追込直線○', '追込コーナー○',
+    '短距離直線○', '短距離コーナー○', 'マイル直線○', 'マイルコーナー○', '中距離直線○', '中距離コーナー○', '長距離直線○', '長距離コーナー○',
+    'コーナー巧者○', 'コーナー加速○', 'コーナー回復○', '直線巧者', '直線加速', '直線回復', '直線一気', '弧線のプロフェッサー', '円弧のマエストロ',
+    'ベースアップ', '垂れウマ回避', '末脚', 'ウマ好み', '遊びはおしまいっ！', '端緒', '躍動', '勝負を賭けて', '戦略家', '存在感',
+    '華麗な踏み込み', 'ギアシフト', '急浮上', '食らいつき', '品行方正', '叩き良化型', '二刀流', '飛躍の予感',
+    '集中力', 'コンセントレーション', '好転一息', '深呼吸', '準備万全！', '前列狙い', '位置取り押し上げ', '先手必勝', '先駆け',
+    '逃げのコツ○', '先行のコツ○', '差しのコツ○', '追込のコツ○', 'スリップストリーム', '注目の踊り子', '上弦のソムリエ',
+    '後方待機', '仕掛け準備', '展開窺い', 'スプリントギア', 'ハヤテ一文字', '電光石火', '迫る影', '詰め寄り', '押し切り準備',
+  ],
+};
+
+let ocrWorker = null;
+function loadScript(url) {
+  return new Promise((res, rej) => {
+    const el = document.createElement('script');
+    el.src = url; el.onload = res;
+    el.onerror = () => rej(new Error('読み込みに失敗しました: ' + url));
+    document.head.appendChild(el);
+  });
+}
+async function getWorker(onProgress) {
+  if (ocrWorker) return ocrWorker;
+  if (!window.Tesseract) await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+  ocrWorker = await Tesseract.createWorker('jpn', 1, {
+    logger: m => { if (m.status && typeof m.progress === 'number') onProgress(m); },
+  });
+  await ocrWorker.setParameters({ tessedit_pageseg_mode: '7', preserve_interword_spaces: '0' });
+  return ocrWorker;
+}
+
+const isYellow = (r, g, b) => r > 200 && g > 140 && b < 110 && r - b > 110;
+
+// 画像から因子タイルの位置・★の数・種類を見つける
+function findTiles(canvas) {
+  const W = canvas.width, H = canvas.height;
+  const data = canvas.getContext('2d').getImageData(0, 0, W, H).data;
+  const px = (x, y) => { const p = (y * W + x) * 4; return [data[p], data[p + 1], data[p + 2]]; };
+
+  // 一覧の始まり = 最初の青い（基礎能力）タイル
+  let listStart = 0;
+  for (let y = 0; y < H; y++) {
+    let n = 0, tot = 0;
+    for (let x = Math.floor(W * 0.2); x < W * 0.5; x += 3) {
+      const [r, g, b] = px(x, y); tot++;
+      if (b > 200 && r < 130 && g > 140) n++;
+    }
+    if (n / tot > 0.5) { listStart = Math.max(0, y - Math.round(W * 0.01)); break; }
+  }
+
+  const zones = [[0.30, 0.47], [0.69, 0.86]];
+  const minH = Math.max(2, W * 0.007), maxH = W * 0.03;
+  const tiles = [];
+  zones.forEach(([a, b], col) => {
+    const x0 = Math.floor(W * a), x1 = Math.ceil(W * b);
+    const rowHas = new Uint8Array(H);
+    for (let y = listStart; y < H; y++) {
+      for (let x = x0; x < x1; x++) { const [r, g, bb] = px(x, y); if (isYellow(r, g, bb)) { rowHas[y] = 1; break; } }
+    }
+    for (let y = listStart; y < H; y++) {
+      if (!rowHas[y]) continue;
+      let y2 = y; while (y2 + 1 < H && (rowHas[y2 + 1] || (y2 + 2 < H && rowHas[y2 + 2]))) y2++;
+      const top = y, bot = y2 + 1; y = y2;
+      if (bot - top < minH || bot - top > maxH) continue;
+      // 横方向に★のかたまりを数える
+      const colHas = new Uint8Array(x1 - x0);
+      for (let yy = top; yy < bot; yy++) for (let x = x0; x < x1; x++) { const [r, g, bb] = px(x, yy); if (isYellow(r, g, bb)) colHas[x - x0] = 1; }
+      const segs = [];
+      for (let i = 0; i < colHas.length; i++) {
+        if (!colHas[i]) continue;
+        let j = i; while (j + 1 < colHas.length && (colHas[j + 1] || (j + 2 < colHas.length && colHas[j + 2]))) j++;
+        if (j - i + 1 >= W * 0.005) segs.push((i + j) / 2 + x0);
+        i = j;
+      }
+      if (!segs.length) continue;
+      const s0 = segs[0];
+      const stars = Math.min(3, segs.filter(c => c - s0 < W * 0.08).length);
+      // 種類：★の左側の地の色
+      let R = 0, G = 0, B = 0, n = 0;
+      for (let yy = top; yy < bot; yy++) for (let x = Math.round(s0 - W * 0.09); x < s0 - W * 0.025; x++) {
+        const [r, g, bb] = px(x, yy); R += r; G += g; B += bb; n++;
+      }
+      R /= n; G /= n; B /= n;
+      let kind = 'white';
+      if (B - R > 90 && B > 180) kind = 'blue';
+      else if (R - G > 70 && B > 110) kind = 'pink';
+      else if (G - R > 20 && G - B > 50) kind = 'green';
+      tiles.push({ col, top, bot, s0, stars, kind });
+    }
+  });
+  tiles.sort((p, q) => (p.top - q.top) || (p.col - q.col));
+  // 同じ行の左右は top がわずかにずれるので、行ごとに並べ直す
+  const rows = [];
+  for (const t of tiles) {
+    const r = rows.find(r => Math.abs(r.top - t.top) < W * 0.02);
+    if (r) r.items.push(t); else rows.push({ top: t.top, items: [t] });
+  }
+  const ordered = [];
+  let owner = -1;
+  for (const r of rows) {
+    r.items.sort((p, q) => p.col - q.col);
+    for (const t of r.items) {
+      if (t.kind === 'blue' && t.col === 0) owner++;
+      t.owner = Math.max(0, owner);
+      ordered.push(t);
+    }
+  }
+  return ordered;
+}
+
+// タイルの文字部分の「インクの濃さ」マップ（0=地、1=文字）を作る
+function inkMap(canvas, t) {
+  const W = canvas.width;
+  const x = Math.round(t.s0 - W * 0.104), w = Math.round(W * 0.325);
+  const y = Math.round(t.top - W * 0.05), h = Math.round(W * 0.047);
+  const src = canvas.getContext('2d', { willReadFrequently: true }).getImageData(x, y, w, h).data;
+  const colored = t.kind !== 'white';
+  const ink = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const r = src[i * 4], g = src[i * 4 + 1], b = src[i * 4 + 2];
+    if (colored) ink[i] = Math.max(0, Math.min(1, (Math.min(r, g, b) - 125) / 70));      // 白文字
+    else ink[i] = Math.max(0, Math.min(1, (200 - (0.299 * r + 0.587 * g + 0.114 * b)) / 110)); // 茶色の文字
+  }
+  // 枠線・★・光沢など、切り出しの端に触れているものは文字ではないので消す
+  const seen = new Uint8Array(w * h), stack = [];
+  const push = i => { if (!seen[i] && ink[i] > 0.3) { seen[i] = 1; stack.push(i); } };
+  for (let xx = 0; xx < w; xx++) { push(xx); push((h - 1) * w + xx); }
+  for (let yy = 0; yy < h; yy++) { push(yy * w); push(yy * w + w - 1); }
+  while (stack.length) {
+    const i = stack.pop(); ink[i] = 0;
+    const xx = i % w, yy = (i / w) | 0;
+    if (xx > 0) push(i - 1); if (xx < w - 1) push(i + 1);
+    if (yy > 0) push(i - w); if (yy < h - 1) push(i + w);
+  }
+  return { ink, w, h };
+}
+
+// part: 'all' = 名前全体 / 'last' = 最後の1文字
+function lastCharBox(m) {
+  const { ink, w, h } = m;
+  const colInk = new Float32Array(w);
+  for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) colInk[xx] += ink[yy * w + xx];
+  let right = w - 1;
+  while (right > 0 && colInk[right] < 0.8) right--;
+  const left = Math.max(0, right - Math.round(h * 0.62));
+  return { left, right };
+}
+
+// OCR に渡す白地に黒文字の画像
+function cropText(canvas, t, part = 'all') {
+  const m = inkMap(canvas, t);
+  let { w, h } = m, x0 = 0;
+  if (part === 'last') { const b = lastCharBox(m); x0 = b.left; w = b.right - b.left + 2; }
+  const tmp = makeCanvas(w, h), tctx = tmp.getContext('2d');
+  const img = tctx.createImageData(w, h), d = img.data;
+  for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
+    const v = 255 - Math.round((m.ink[yy * m.w + xx + x0] || 0) * 255), o = (yy * w + xx) * 4;
+    d[o] = d[o + 1] = d[o + 2] = v; d[o + 3] = 255;
+  }
+  tctx.putImageData(img, 0, 0);
+  const scale = Math.max(1, 64 / h);
+  const c = makeCanvas(Math.round(w * scale) + 40, Math.round(h * scale) + 30);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(tmp, 0, 0, w, h, 20, 15, c.width - 40, c.height - 30);
+  return c;
+}
+
+// 最後の1文字の形を 16x16 の数値列にする（同じ文字どうしを見比べる用）
+function glyphVec(canvas, t) {
+  const m = inkMap(canvas, t), { left, right } = lastCharBox(m);
+  let x0 = right, x1 = left, y0 = m.h, y1 = 0;
+  for (let yy = 0; yy < m.h; yy++) for (let xx = left; xx <= right; xx++) if (m.ink[yy * m.w + xx] > 0.4) {
+    x0 = Math.min(x0, xx); x1 = Math.max(x1, xx); y0 = Math.min(y0, yy); y1 = Math.max(y1, yy);
+  }
+  const N = 16, v = new Float32Array(N * N);
+  if (x1 < x0) return v;
+  const bw = x1 - x0 + 1, bh = y1 - y0 + 1, size = Math.max(bw, bh);
+  const ox = x0 - (size - bw) / 2, oy = y0 - (size - bh) / 2;
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const sx = Math.floor(ox + (i + 0.5) * size / N), sy = Math.floor(oy + (j + 0.5) * size / N);
+    v[j * N + i] = sx >= 0 && sy >= 0 && sx < m.w && sy < m.h ? m.ink[sy * m.w + sx] : 0;
+  }
+  return v;
+}
+const vecDist = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s / a.length; };
+
+// アオハル点火・〇／レースの真髄・〇 の〇を決める。
+// ゲームでは各ウマ娘の中で 速→体→力→根→賢→心 の順に並ぶ。
+// 1) 全部そろっている並び（例：アオハル5種）は順番だけで文字が決まるので、そこから各文字の「見本」の形を作る
+// 2) 残りの並びは、見本との形の近さが一番よく、かつ順番を守る割り当てを選ぶ
+// 見本が作れないときは、形の似たものどうしをまとめる方法に切り替える
+function labelSuffixes(items) {
+  if (!items.length) return;
+  const allowedOf = f => (f === 'アオハル点火' ? '速体力根賢' : SUFFIXES);
+  const seqs = new Map();
+  for (const it of items) {
+    const k = it.owner + '\t' + it.family;
+    if (!seqs.has(k)) seqs.set(k, []);
+    seqs.get(k).push(it);
+  }
+  const N = items[0].vec.length;
+  let bank = {};
+  const addTo = (bk, c, v) => { (bk[c] = bk[c] || []).push(v); };
+  const complete = [];
+  for (const seq of seqs.values()) {
+    const al = allowedOf(seq[0].family);
+    if (seq.length === al.length) { seq.forEach((it, k) => { it.ch = al[k]; it.sure = true; addTo(bank, al[k], it.vec); }); complete.push(seq); }
+  }
+  if (!Object.keys(bank).length) { clusterLabel(items); return; }
+  const mean = arr => { const m = new Float32Array(N); for (const v of arr) for (let i = 0; i < N; i++) m[i] += v[i] / arr.length; return m; };
+  for (let iter = 0; iter < 2; iter++) {
+    const T = {};
+    for (const c in bank) T[c] = mean(bank[c]);
+    const nextBank = {};
+    for (const seq of complete) seq.forEach(it => addTo(nextBank, it.ch, it.vec));
+    for (const seq of seqs.values()) {
+      if (complete.includes(seq)) continue;
+      const al = [...allowedOf(seq[0].family)], m = al.length, k = seq.length;
+      const cost = (it, c) => (T[c] ? vecDist(it.vec, T[c]) : 0.22) - (it.ocrCh === c ? 0.02 : 0);
+      // dp[i][j]: i番目までを割り当てて、i番目が文字 j のときの最小コスト
+      const dp = Array.from({ length: k }, () => new Array(m).fill(Infinity));
+      const from = Array.from({ length: k }, () => new Array(m).fill(-1));
+      for (let j = 0; j < m; j++) dp[0][j] = cost(seq[0], al[j]);
+      for (let i = 1; i < k; i++) for (let j = i; j < m; j++) {
+        for (let q = i - 1; q < j; q++) {
+          const v = dp[i - 1][q] + cost(seq[i], al[j]);
+          if (v < dp[i][j]) { dp[i][j] = v; from[i][j] = q; }
+        }
+      }
+      let j = 0; for (let q = 1; q < m; q++) if (dp[k - 1][q] < dp[k - 1][j]) j = q;
+      for (let i = k - 1; i >= 0; i--) { seq[i].ch = al[j]; j = from[i][j]; }
+      for (const it of seq) {
+        // 見本の中で一番近いのが割り当てた文字なら「自信あり」
+        let near = '', nd = Infinity;
+        for (const c of al) if (T[c]) { const d = vecDist(it.vec, T[c]); if (d < nd) { nd = d; near = c; } }
+        it.sure = near === it.ch || (!T[it.ch] && !!near && nd > 0.15);
+        addTo(nextBank, it.ch, it.vec);
+      }
+    }
+    bank = nextBank;
+  }
+}
+
+function clusterLabel(items) {
+  if (!items.length) return;
+  const n = items.length;
+  // 平均連結でまとめる
+  let groups = items.map((_, i) => [i]);
+  const gDist = (a, b) => { let s = 0; for (const i of a) for (const j of b) s += vecDist(items[i].vec, items[j].vec); return s / (a.length * b.length); };
+  const TH = 0.16;
+  for (;;) {
+    let best = null, bd = Infinity;
+    for (let a = 0; a < groups.length; a++) for (let b = a + 1; b < groups.length; b++) {
+      const d = gDist(groups[a], groups[b]); if (d < bd) { bd = d; best = [a, b]; }
+    }
+    // 文字の種類は最大6つなので、それより多いうちは似ている順にまとめ続ける
+    if (!best || (bd > TH && groups.length <= SUFFIXES.length)) break;
+    groups[best[0]] = groups[best[0]].concat(groups[best[1]]); groups.splice(best[1], 1);
+  }
+  const gid = new Array(n); groups.forEach((g, k) => g.forEach(i => { gid[i] = k; }));
+  // 各グループに文字を割り当てる全通りを試す
+  const chars = [...SUFFIXES];
+  let bestAssign = null, bestScore = -1, ties = 0;
+  const assign = new Array(groups.length), used = new Set();
+  const valid = () => {
+    const seqs = new Map();
+    for (let i = 0; i < n; i++) {
+      const ch = assign[gid[i]];
+      if (items[i].family === 'アオハル点火' && ch === '心') return false;
+      const key = items[i].owner + items[i].family;
+      const idx = SUFFIXES.indexOf(ch);
+      if (seqs.has(key) && seqs.get(key) >= idx) return false;
+      seqs.set(key, idx);
+    }
+    return true;
+  };
+  const rec = k => {
+    if (k === groups.length) {
+      if (!valid()) return;
+      let sc = 0; for (let i = 0; i < n; i++) if (items[i].ocrCh === assign[gid[i]]) sc++;
+      if (sc > bestScore) { bestScore = sc; bestAssign = assign.slice(); ties = 1; } else if (sc === bestScore) ties++;
+      return;
+    }
+    for (const c of chars) { if (used.has(c)) continue; used.add(c); assign[k] = c; rec(k + 1); used.delete(c); }
+  };
+  rec(0);
+  if (!bestAssign) { items.forEach(it => { it.ch = it.ocrCh; it.sure = false; }); return; }
+  items.forEach((it, i) => { it.ch = bestAssign[gid[i]]; it.sure = ties === 1; });
+}
+
+const normalize = s => (s || '')
+  .replace(/[\s　]/g, '')
+  .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+  .replace(/[・･]/g, '・').replace(/[〇◯O0]$/, '○').replace(/[!！]/g, '！')
+  .replace(/[()]/g, m => (m === '(' ? '（' : '）'));
+
+function similarity(a, b) {
+  const m = a.length, n = b.length;
+  if (!m || !n) return 0;
+  const dp = Array.from({ length: m + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+    dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return 1 - dp[m][n] / Math.max(m, n);
+}
+
+const FAMILIES = ['アオハル点火', 'レースの真髄'];
+const SUFFIXES = '速体力根賢心';
+
+function matchName(raw, kind) {
+  const text = normalize(raw);
+  // アオハル点火・〇 / レースの真髄・〇 は、先頭部分だけで判定して末尾は別に読む
+  if (kind === '白') {
+    const head = text.replace(/・?.$/, '');
+    for (const f of FAMILIES) {
+      if (similarity(head, f) >= 0.5 || similarity(text.slice(0, f.length), f) >= 0.5) return { family: f, name: f, sure: true };
+    }
+  }
+  const list = DICT[kind] || [];
+  let best = '', score = 0;
+  for (const cand of list) {
+    const sc = similarity(text, normalize(cand));
+    if (sc > score) { score = sc; best = cand; }
+  }
+  if (kind === '青' || kind === '赤') return { name: best || text, sure: score >= 0.5 };
+  if (score >= 0.6) return { name: best, sure: score >= 0.75 };
+  return { name: text, sure: false };
+}
+
+let xlRows = [];
+
+$('ocrRun').addEventListener('click', async () => {
+  if (!lastCanvas) return;
+  const btn = $('ocrRun');
+  btn.disabled = true;
+  try {
+    const tiles = findTiles(lastCanvas);
+    if (!tiles.length) throw new Error('因子のタイルが見つかりませんでした。継承タブの画像か確認してください。');
+    status('文字認識の準備をしています…'); prog(0);
+    const worker = await getWorker(m => {
+      if (m.status.includes('loading')) { status('文字認識データを読み込んでいます…'); prog(m.progress * 0.3); }
+    });
+    xlRows = [];
+    const famItems = [];
+    for (let i = 0; i < tiles.length; i++) {
+      const t = tiles[i];
+      const kind = KINDS[t.kind];
+      const { data } = await worker.recognize(cropText(lastCanvas, t));
+      const m = matchName(data.text, kind);
+      const row = { owner: OWNERS[t.owner] || `継承元${t.owner}`, kind, name: m.name, stars: t.stars, sure: m.sure };
+      if (m.family) {
+        const valid = m.family === 'アオハル点火' ? '速体力根賢' : SUFFIXES;
+        row.family = m.family;
+        row.ocrCh = [...normalize(data.text)].reverse().find(c => valid.includes(c)) || '';
+        row.vec = glyphVec(lastCanvas, t);
+        famItems.push(row);
+      }
+      xlRows.push(row);
+      status(`因子を読み取り中… ${i + 1}/${tiles.length}`);
+      prog(0.3 + (i + 1) / tiles.length * 0.7);
+    }
+    labelSuffixes(famItems);
+    for (const r of famItems) { r.name = `${r.family}・${r.ch || '?'}`; delete r.vec; }
+    renderTable();
+    $('xlArea').hidden = false;
+    const unsure = xlRows.filter(r => !r.sure).length;
+    status(`${xlRows.length}個の因子を読み取りました。${unsure ? `自信がない行が${unsure}行あるので確認してください。` : ''}`);
+  } catch (err) {
+    console.error(err);
+    status(err.message || String(err), true);
+  } finally {
+    btn.disabled = false; prog(null);
+  }
+});
+
+function renderTable() {
+  const tb = $('xlTable').tBodies[0];
+  tb.innerHTML = '';
+  xlRows.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    if (!r.sure) tr.className = 'unsure';
+    tr.innerHTML = `
+      <td><select data-k="owner">${OWNERS.map(o => `<option${o === r.owner ? ' selected' : ''}>${o}</option>`).join('')}</select></td>
+      <td><select data-k="kind">${Object.values(KINDS).map(k => `<option${k === r.kind ? ' selected' : ''}>${k}</option>`).join('')}</select></td>
+      <td><input class="star" data-k="stars" type="number" min="1" max="3" inputmode="numeric"></td>
+      <td><input class="name" data-k="name"></td>
+      <td><button class="del" title="この行を削除" aria-label="この行を削除">×</button></td>`;
+    tr.querySelector('[data-k=name]').value = r.name;
+    tr.querySelector('[data-k=stars]').value = r.stars;
+    tr.addEventListener('input', e => {
+      const k = e.target.dataset.k; if (!k) return;
+      r[k] = k === 'stars' ? Math.max(1, Math.min(3, +e.target.value || 1)) : e.target.value;
+      r.sure = true; tr.className = '';
+    });
+    tr.querySelector('.del').addEventListener('click', () => { xlRows.splice(i, 1); renderTable(); });
+    tb.appendChild(tr);
+  });
+}
+
+function summaryRows() {
+  const map = new Map();
+  for (const r of xlRows) {
+    const key = r.kind + '\t' + r.name;
+    if (!map.has(key)) map.set(key, { kind: r.kind, name: r.name, by: {} });
+    const e = map.get(key);
+    e.by[r.owner] = (e.by[r.owner] || 0) + (+r.stars || 0);
+  }
+  // 青→赤→緑→白、白はアオハル点火・レースの真髄を先頭に 速→心 の順でまとめる
+  const kindOrder = '青赤緑白';
+  const sortKey = (e, i) => {
+    const fam = FAMILIES.findIndex(f => e.name.startsWith(f + '・'));
+    const suf = fam >= 0 ? SUFFIXES.indexOf(e.name.slice(-1)) : 0;
+    return [kindOrder.indexOf(e.kind), fam >= 0 ? fam : FAMILIES.length, suf, i];
+  };
+  const entries = [...map.values()].map((e, i) => ({ e, k: sortKey(e, i) }))
+    .sort((p, q) => { for (let i = 0; i < 4; i++) if (p.k[i] !== q.k[i]) return p.k[i] - q.k[i]; return 0; })
+    .map(x => x.e);
+  return entries.map(e => {
+    const self = e.by['自前'] || 0;
+    const total = Object.values(e.by).reduce((a, b) => a + b, 0);
+    return [e.kind, e.name, self, e.by['継承元1'] || 0, e.by['継承元2'] || 0, total];
+  });
+}
+
+$('xlDl').addEventListener('click', async () => {
+  try {
+    if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    const wb = XLSX.utils.book_new();
+    const list = [['持ち主', '種類', '因子名', '★'], ...xlRows.map(r => [r.owner, r.kind, r.name, +r.stars])];
+    const ws1 = XLSX.utils.aoa_to_sheet(list);
+    ws1['!cols'] = [{ wch: 9 }, { wch: 5 }, { wch: 24 }, { wch: 4 }];
+    XLSX.utils.book_append_sheet(wb, ws1, '因子一覧');
+    const sum = [['種類', '因子名', '自前', '継承元1', '継承元2', '合計（祖父母込み）'], ...summaryRows()];
+    const ws2 = XLSX.utils.aoa_to_sheet(sum);
+    ws2['!cols'] = [{ wch: 5 }, { wch: 24 }, { wch: 6 }, { wch: 8 }, { wch: 8 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, ws2, '集計');
+    XLSX.writeFile(wb, 'inshi.xlsx');
+  } catch (err) { status(err.message || String(err), true); }
+});
+
+$('xlCopy').addEventListener('click', async () => {
+  const tsv = [['持ち主', '種類', '因子名', '★'], ...xlRows.map(r => [r.owner, r.kind, r.name, r.stars])].map(r => r.join('\t')).join('\n');
+  try { await navigator.clipboard.writeText(tsv); status('表をコピーしました。Excelやスプレッドシートに貼り付けできます。'); }
+  catch (_) { status('コピーできませんでした。Excelでダウンロードを使ってください。', true); }
+});
+
+// ---------- 範囲調整 ----------
+async function setupAdjust() {
+  const { W, H } = src;
+  const pv = $('preview');
+  pv.width = W; pv.height = H;
+  const base = makeCanvas(W, H);
+  await src.draw(frameIdx[0] ?? 0, base.getContext('2d'));
+  const topR = $('topR'), botR = $('botR');
+  topR.max = botR.max = H;
+  topR.value = region.top; botR.value = region.bot;
+  const paint = () => {
+    const ctx = pv.getContext('2d');
+    ctx.drawImage(base, 0, 0);
+    const t = +topR.value, b = +botR.value;
+    ctx.fillStyle = 'rgba(0,0,0,.45)';
+    ctx.fillRect(0, 0, W, t); ctx.fillRect(0, b, W, H - b);
+    ctx.fillStyle = '#4fae2c';
+    ctx.fillRect(0, t - 3, W, 6); ctx.fillRect(0, b - 3, W, 6);
+    $('topVal').textContent = t; $('botVal').textContent = b;
+  };
+  topR.oninput = botR.oninput = paint;
+  paint();
+  $('adjust').hidden = false;
+}
+})();
+</script>
+</body>
+</html>
