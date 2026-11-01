@@ -31,6 +31,8 @@ p.lead{margin:0 0 16px;color:var(--muted);font-size:.92rem}
   border:2px dashed var(--accent);border-radius:12px;padding:22px 12px;text-align:center;cursor:pointer;
   background:var(--accent-soft);font-weight:600}
 .drop small{font-weight:400;color:var(--muted)}
+.drop.over{border-style:solid;background:var(--card);outline:3px solid var(--accent-soft)}
+body.dragging .drop{border-style:solid}
 .drop input{display:none}
 #fileName{margin-top:8px;font-size:.88rem;color:var(--muted);word-break:break-all}
 details{margin-top:12px;font-size:.92rem}
@@ -66,7 +68,7 @@ ol.how{padding-left:1.3em;margin:6px 0 0;font-size:.9rem}
     <label class="drop">
       <input type="file" id="file" accept="video/*,image/*" multiple>
       <span>動画 または スクショを選ぶ</span>
-      <small>画面録画1本、または少しずつ重なったスクショ複数枚</small>
+      <small>ここにドラッグ＆ドロップしてもOK<br>画面録画1本、または少しずつ重なったスクショ複数枚</small>
     </label>
     <div id="fileName"></div>
 
@@ -132,17 +134,44 @@ const status = (msg, err) => { const s = $('status'); s.textContent = msg; s.cla
 const prog = v => { const p = $('prog'); if (v == null) { p.hidden = true; } else { p.hidden = false; p.value = v; } };
 const tick = () => new Promise(r => setTimeout(r, 0));
 
-$('file').addEventListener('change', e => {
-  const fs = [...e.target.files];
-  if (!fs.length) return;
+let picked = [];
+function setFiles(fs) {
+  fs = fs.filter(f => /^(video|image)\//.test(f.type) || /\.(mov|mp4|m4v|webm|png|jpe?g|webp|heic)$/i.test(f.name));
+  if (!fs.length) { status('動画か画像のファイルを選んでください。', true); return; }
+  picked = fs;
   $('fileName').textContent = fs.length === 1 ? fs[0].name : `${fs.length}個のファイル`;
   $('run').disabled = false;
   $('adjust').hidden = true; $('result').hidden = true;
   status('');
+}
+$('file').addEventListener('change', e => setFiles([...e.target.files]));
+
+// ドラッグ＆ドロップ（ページのどこに落としてもOK）
+const dropBox = document.querySelector('.drop');
+let dragDepth = 0;
+const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+window.addEventListener('dragenter', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); dragDepth++;
+  document.body.classList.add('dragging'); dropBox.classList.add('over');
+});
+window.addEventListener('dragover', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+});
+window.addEventListener('dragleave', e => {
+  if (!hasFiles(e)) return;
+  if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dragging'); dropBox.classList.remove('over'); }
+});
+window.addEventListener('drop', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); dragDepth = 0;
+  document.body.classList.remove('dragging'); dropBox.classList.remove('over');
+  setFiles([...e.dataTransfer.files]);
 });
 
 $('run').addEventListener('click', async () => {
-  const fs = [...$('file').files];
+  const fs = picked;
   if (!fs.length) return;
   $('run').disabled = true;
   try {
