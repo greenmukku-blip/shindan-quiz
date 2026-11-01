@@ -79,6 +79,7 @@ ol.how{padding-left:1.3em;margin:6px 0 0;font-size:.9rem}
         <select id="outW"><option>540</option><option selected>720</option><option>900</option><option>1080</option></select></div>
       <label class="chk"><input type="checkbox" id="keepHeader" checked>上の固定部分（ステータス欄など）を残す</label>
       <label class="chk"><input type="checkbox" id="keepFooter">下の固定部分（ボタンなど）を残す</label>
+      <label class="chk"><input type="checkbox" id="cutTail" checked>因子一覧の下（継承履歴など）をカットする</label>
     </details>
 
     <button id="run" class="wide" disabled>画像を作る</button>
@@ -426,7 +427,16 @@ async function compose() {
     if (u % 3 === 0) await tick();
   }
 
-  resultBlob = await new Promise(r => out.toBlob(r, 'image/png'));
+  let finalCanvas = out, cut = false;
+  if ($('cutTail').checked) {
+    const y = findTailCut(out);
+    if (y) {
+      finalCanvas = makeCanvas(out.width, y);
+      finalCanvas.getContext('2d').drawImage(out, 0, 0);
+      cut = true;
+    }
+  }
+  resultBlob = await new Promise(r => finalCanvas.toBlob(r, 'image/png'));
   if (resultUrl) URL.revokeObjectURL(resultUrl);
   resultUrl = URL.createObjectURL(resultBlob);
   $('outImg').src = resultUrl;
@@ -438,6 +448,7 @@ async function compose() {
   if (src.kind === 'image' && skipped) msg = `${skipped}枚のスクショは前の画像との重なりが見つからず、使えませんでした。前の画像と3割くらい重なるように撮ってください。`;
   else if (src.kind === 'video' && used.length < 2) msg = 'スクロールを見つけられませんでした。下の「スクロール範囲の調整」を試すか、ゆっくり撮り直してください。';
   else if (skipped > used.length) msg += ' つなげなかった画面が多めです。ずれていたら、もう少しゆっくりスクロールして撮り直してください。';
+  if (cut) msg += ' 下の継承履歴はカットしました。';
   status(msg, used.length < 2 || (src.kind === 'image' && skipped > 0));
   $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -447,6 +458,32 @@ $('share').addEventListener('click', async () => {
   const file = new File([resultBlob], 'inshi_stamp.png', { type: 'image/png' });
   try { await navigator.share({ files: [file] }); } catch (_) {}
 });
+
+// 因子一覧の下にある緑の見出し帯（「継承履歴」）を探し、その手前の高さを返す
+function findTailCut(canvas) {
+  const W = canvas.width, H = canvas.height;
+  const data = canvas.getContext('2d').getImageData(0, 0, W, H).data;
+  const isBar = y => {
+    let n = 0;
+    for (let x = 0; x < W; x += 2) {
+      const p = (y * W + x) * 4, r = data[p], g = data[p + 1], b = data[p + 2];
+      if (g > 150 && g - r > 35 && g - b > 60) n++;
+    }
+    return n / Math.ceil(W / 2) > 0.6;
+  };
+  let runEnd = -1, len = 0;
+  // 下から上へ探し、画像の下半分にある最後の帯を見つける
+  for (let y = H - 1; y > H * 0.5; y--) {
+    if (isBar(y)) {
+      if (runEnd < 0) runEnd = y;
+      len++;
+    } else if (runEnd >= 0) {
+      if (len >= 4) return Math.max(1, y - 2);
+      runEnd = -1; len = 0;
+    }
+  }
+  return 0;
+}
 
 // ---------- 範囲調整 ----------
 async function setupAdjust() {
