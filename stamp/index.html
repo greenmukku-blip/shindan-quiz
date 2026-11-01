@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>因子スタンプメーカー</title>
+<style>
+:root{
+  --bg:#f4f6f1; --card:#ffffff; --text:#1f2a1c; --muted:#5d6b58; --line:#d9e0d3;
+  --accent:#4fae2c; --accent-ink:#ffffff; --accent-soft:#e5f4dc; --warn:#b5541b;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141812; --card:#1d231a; --text:#e8eee4; --muted:#9fae98; --line:#33402e;
+    --accent:#6cc94a; --accent-ink:#0f1a0b; --accent-soft:#25351e; --warn:#f0a070;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141812; --card:#1d231a; --text:#e8eee4; --muted:#9fae98; --line:#33402e;
+  --accent:#6cc94a; --accent-ink:#0f1a0b; --accent-soft:#25351e; --warn:#f0a070;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.6}
+main{max-width:640px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.5rem;margin:0 0 4px}
+h2{font-size:1.05rem;margin:0 0 10px}
+p.lead{margin:0 0 16px;color:var(--muted);font-size:.92rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  border:2px dashed var(--accent);border-radius:12px;padding:22px 12px;text-align:center;cursor:pointer;
+  background:var(--accent-soft);font-weight:600}
+.drop small{font-weight:400;color:var(--muted)}
+.drop input{display:none}
+#fileName{margin-top:8px;font-size:.88rem;color:var(--muted);word-break:break-all}
+details{margin-top:12px;font-size:.92rem}
+summary{cursor:pointer;color:var(--muted)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0}
+.row input[type=number],.row select{width:110px;padding:6px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--text);font-size:.95rem}
+label.chk{display:flex;gap:8px;align-items:center;margin:8px 0}
+button,.btn{appearance:none;border:0;border-radius:10px;padding:12px 16px;font-size:1rem;font-weight:700;
+  background:var(--accent);color:var(--accent-ink);cursor:pointer;text-decoration:none;display:inline-block;text-align:center}
+button.sub,.btn.sub{background:transparent;color:var(--text);border:1px solid var(--line)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.wide{width:100%;margin-top:14px}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.btns>*{flex:1 1 140px}
+#status{margin-top:10px;font-size:.9rem;color:var(--muted);min-height:1.4em}
+#status.err{color:var(--warn)}
+progress{width:100%;height:8px;margin-top:6px;accent-color:var(--accent)}
+.preview-wrap{position:relative;max-width:260px;margin:0 auto}
+#preview{width:100%;display:block;border-radius:8px;border:1px solid var(--line)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+#outImg{width:100%;display:block;border-radius:8px;border:1px solid var(--line);background:#fff}
+.note{font-size:.84rem;color:var(--muted);margin:8px 0 0}
+ol.how{padding-left:1.3em;margin:6px 0 0;font-size:.9rem}
+</style>
+</head>
+<body>
+<main>
+  <h1>因子スタンプメーカー</h1>
+  <p class="lead">継承タブをスクロールした画面録画（またはスクショ数枚）から、因子一覧を1枚の縦長画像にまとめます。処理は全部この端末の中で行い、どこにもアップロードしません。</p>
+
+  <section class="card">
+    <label class="drop">
+      <input type="file" id="file" accept="video/*,image/*" multiple>
+      <span>動画 または スクショを選ぶ</span>
+      <small>画面録画1本、または少しずつ重なったスクショ複数枚</small>
+    </label>
+    <div id="fileName"></div>
+
+    <details>
+      <summary>詳細設定</summary>
+      <div class="row"><span>動画の取り込み間隔（秒）</span><input type="number" id="interval" value="0.1" step="0.02" min="0.04" max="1"></div>
+      <div class="row"><span>出力画像の幅（px）</span>
+        <select id="outW"><option>540</option><option selected>720</option><option>900</option><option>1080</option></select></div>
+      <label class="chk"><input type="checkbox" id="keepHeader" checked>上の固定部分（ステータス欄など）を残す</label>
+      <label class="chk"><input type="checkbox" id="keepFooter">下の固定部分（ボタンなど）を残す</label>
+    </details>
+
+    <button id="run" class="wide" disabled>画像を作る</button>
+    <progress id="prog" max="1" value="0" hidden></progress>
+    <div id="status"></div>
+  </section>
+
+  <section class="card" id="adjust" hidden>
+    <h2>スクロール範囲の調整</h2>
+    <p class="note">緑の線の間がスクロールする部分です。つなぎ目がずれる・上下が欠けるときは動かして「作り直す」を押してください。</p>
+    <div class="preview-wrap"><canvas id="preview"></canvas></div>
+    <div class="row"><span>上端</span><span id="topVal"></span></div>
+    <input type="range" id="topR" min="0" max="100" value="0">
+    <div class="row"><span>下端</span><span id="botVal"></span></div>
+    <input type="range" id="botR" min="0" max="100" value="100">
+    <button id="rerun" class="wide sub">この範囲で作り直す</button>
+  </section>
+
+  <section class="card" id="result" hidden>
+    <h2>できあがり</h2>
+    <img id="outImg" alt="つなげた因子一覧の画像">
+    <div class="btns">
+      <a id="dl" class="btn" download="inshi_stamp.png">保存する</a>
+      <button id="share" class="sub" hidden>共有する</button>
+    </div>
+    <p class="note">iPhoneで「保存する」がうまくいかないときは、画像を長押しして「"写真"に保存」を選んでください。</p>
+  </section>
+
+  <section class="card">
+    <h2>使い方</h2>
+    <ol class="how">
+      <li>ゲームでウマ娘詳細の「継承」タブを開く</li>
+      <li>画面録画を開始して、一番上から一番下までゆっくりスクロールする（指を離して止めながらでもOK）</li>
+      <li>録画した動画をここで選んで「画像を作る」</li>
+    </ol>
+    <p class="note">速くスクロールしすぎると、つなぎ目を見つけられないことがあります。うまくいかないときは、ゆっくり撮り直すか、少しずつ重なるスクショを複数枚選んでください。</p>
+  </section>
+</main>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const BLOCKS = 64;              // 1行を何ブロックに分けて比べるか
+const MAX_FRAMES = 400;
+
+let src = null;                 // {kind, count, W, H, draw(i, ctx)}
+let sigs = [];                  // 取り込んだフレームの行シグネチャ
+let frameIdx = [];              // sigs[k] が元の何フレーム目か
+let region = null;              // {top, bot}
+let resultUrl = null, resultBlob = null;
+
+const status = (msg, err) => { const s = $('status'); s.textContent = msg; s.className = err ? 'err' : ''; };
+const prog = v => { const p = $('prog'); if (v == null) { p.hidden = true; } else { p.hidden = false; p.value = v; } };
+const tick = () => new Promise(r => setTimeout(r, 0));
+
+$('file').addEventListener('change', e => {
+  const fs = [...e.target.files];
+  if (!fs.length) return;
+  $('fileName').textContent = fs.length === 1 ? fs[0].name : `${fs.length}個のファイル`;
+  $('run').disabled = false;
+  $('adjust').hidden = true; $('result').hidden = true;
+  status('');
+});
+
+$('run').addEventListener('click', async () => {
+  const fs = [...$('file').files];
+  if (!fs.length) return;
+  $('run').disabled = true;
+  try {
+    src = await openSource(fs);
+    await analyze();
+    region = detectRegion();
+    await setupAdjust();
+    await compose();
+  } catch (err) {
+    console.error(err);
+    status(err.message || String(err), true);
+  } finally {
+    $('run').disabled = false; prog(null);
+  }
+});
+
+$('rerun').addEventListener('click', async () => {
+  if (!src) return;
+  $('rerun').disabled = true;
+  try {
+    const t = +$('topR').value, b = +$('botR').value;
+    if (b - t < 40) throw new Error('上端と下端が近すぎます。');
+    region = { top: t, bot: b };
+    await compose();
+  } catch (err) { status(err.message, true); }
+  finally { $('rerun').disabled = false; prog(null); }
+});
+
+// ---------- 入力（動画 / 画像）----------
+async function openSource(fs) {
+  const outW = +$('outW').value;
+  const video = fs.find(f => f.type.startsWith('video/') || /\.(mov|mp4|m4v|webm)$/i.test(f.name));
+  if (video) {
+    if (fs.length > 1) status('動画が含まれているので、その1本だけを使います。');
+    return openVideo(video, outW);
+  }
+  return openImages(fs, outW);
+}
+
+async function openVideo(file, outW) {
+  status('動画を読み込んでいます…');
+  const v = document.createElement('video');
+  v.muted = true; v.playsInline = true; v.preload = 'auto';
+  v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
+  v.src = URL.createObjectURL(file);
+  await new Promise((res, rej) => {
+    v.onloadedmetadata = res;
+    v.onerror = () => rej(new Error('この動画は読み込めませんでした。別の形式（MP4など）で試してください。'));
+  });
+  // iOS Safari は一度再生しないとフレームを描けないことがある
+  try { await v.play(); v.pause(); } catch (_) {}
+  const dur = v.duration;
+  if (!isFinite(dur) || dur <= 0) throw new Error('動画の長さを取得できませんでした。');
+  let step = Math.max(0.04, +$('interval').value || 0.1);
+  if (dur / step > MAX_FRAMES) step = dur / MAX_FRAMES;
+  const times = [];
+  for (let t = 0; t < dur - 0.02; t += step) times.push(t);
+  times.push(Math.max(0, dur - 0.05));
+  const W = outW, H = Math.round(v.videoHeight * outW / v.videoWidth);
+  const seek = t => new Promise(r => {
+    const h = () => { v.removeEventListener('seeked', h); r(); };
+    v.addEventListener('seeked', h);
+    v.currentTime = t;
+  });
+  return {
+    kind: 'video', count: times.length, W, H,
+    async draw(i, ctx) { await seek(times[i]); ctx.drawImage(v, 0, 0, W, H); }
+  };
+}
+
+async function openImages(fs, outW) {
+  status('画像を読み込んでいます…');
+  fs.sort((a, b) => a.name.localeCompare(b.name, 'ja', { numeric: true }));
+  const imgs = [];
+  for (const f of fs) {
+    const bmp = await createImageBitmap(f).catch(() => null);
+    if (!bmp) throw new Error(`${f.name} を読み込めませんでした。`);
+    imgs.push(bmp);
+  }
+  const W = outW, H = Math.round(imgs[0].height * outW / imgs[0].width);
+  return {
+    kind: 'image', count: imgs.length, W, H,
+    async draw(i, ctx) { ctx.drawImage(imgs[i], 0, 0, W, H); }
+  };
+}
+
+// ---------- 解析 ----------
+function makeCanvas(w, h) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  return c;
+}
+
+function signature(data, W, H) {
+  // 各行を BLOCKS 個の区間に分け、区間ごとの明るさ平均を持つ
+  const sig = new Uint8Array(H * BLOCKS);
+  const bw = W / BLOCKS;
+  for (let y = 0; y < H; y++) {
+    const rowOff = y * W * 4;
+    for (let b = 0; b < BLOCKS; b++) {
+      const x0 = Math.floor(b * bw), x1 = Math.floor((b + 1) * bw);
+      let s = 0;
+      for (let x = x0; x < x1; x++) {
+        const p = rowOff + x * 4;
+        s += data[p] * 0.299 + data[p + 1] * 0.587 + data[p + 2] * 0.114;
+      }
+      sig[y * BLOCKS + b] = s / (x1 - x0);
+    }
+  }
+  return sig;
+}
+
+function meanDiff(a, b) {
+  let s = 0;
+  for (let i = 0; i < a.length; i += 7) s += Math.abs(a[i] - b[i]);
+  return s / Math.ceil(a.length / 7);
+}
+
+async function analyze() {
+  const { W, H, count } = src;
+  const c = makeCanvas(W, H), ctx = c.getContext('2d', { willReadFrequently: true });
+  sigs = []; frameIdx = [];
+  for (let i = 0; i < count; i++) {
+    await src.draw(i, ctx);
+    const sig = signature(ctx.getImageData(0, 0, W, H).data, W, H);
+    // 止まっていて前と同じ画面なら捨てる
+    if (sigs.length && meanDiff(sig, sigs[sigs.length - 1]) < 0.4) {
+      if (i === count - 1) { sigs[sigs.length - 1] = sig; frameIdx[frameIdx.length - 1] = i; }
+      continue;
+    }
+    sigs.push(sig); frameIdx.push(i);
+    status(`画面を読み取り中… ${i + 1}/${count}`);
+    prog((i + 1) / count * 0.6);
+    if (i % 4 === 0) await tick();
+  }
+  if (sigs.length < 2 && src.kind === 'video') throw new Error('動画の中で画面が動いていないようです。');
+}
+
+function detectRegion() {
+  const { H } = src;
+  if (sigs.length < 2) return { top: 0, bot: H };
+  // 行ごとに「フレーム間でどれだけ変化したか」を集計
+  const act = new Float32Array(H);
+  for (let k = 1; k < sigs.length; k++) {
+    const a = sigs[k - 1], b = sigs[k];
+    for (let y = 0; y < H; y++) {
+      let s = 0;
+      for (let x = 0; x < BLOCKS; x++) s += Math.abs(a[y * BLOCKS + x] - b[y * BLOCKS + x]);
+      act[y] += s / BLOCKS;
+    }
+  }
+  for (let y = 0; y < H; y++) act[y] /= (sigs.length - 1);
+  const sorted = [...act].sort((p, q) => p - q);
+  const thr = Math.max(1.0, sorted[Math.floor(H * 0.9)] * 0.12);
+  // 変化した行の一番長いかたまり（小さな切れ目は無視）を採用
+  const gapMax = Math.round(H * 0.06);
+  let best = null, start = -1, lastActive = -1;
+  for (let y = 0; y <= H; y++) {
+    const on = y < H && act[y] > thr;
+    if (on) {
+      if (start < 0 || y - lastActive > gapMax) {
+        if (start >= 0 && (!best || lastActive + 1 - start > best.bot - best.top)) best = { top: start, bot: lastActive + 1 };
+        start = y;
+      }
+      lastActive = y;
+    }
+  }
+  if (start >= 0 && (!best || lastActive + 1 - start > best.bot - best.top)) best = { top: start, bot: lastActive + 1 };
+  if (!best || best.bot - best.top < H * 0.15) return { top: 0, bot: H };
+  return best;
+}
+
+// A の (y+dy) 行と B の y 行を比べたときのズレ量
+function cost(A, B, top, bot, dy, yStep, bStep) {
+  let s = 0, n = 0;
+  for (let y = top; y + dy < bot; y += yStep) {
+    const ia = (y + dy) * BLOCKS, ib = y * BLOCKS;
+    for (let x = 0; x < BLOCKS; x += bStep) { s += Math.abs(A[ia + x] - B[ib + x]); n++; }
+  }
+  return n ? s / n : Infinity;
+}
+
+function findOffset(A, B, top, bot) {
+  const h = bot - top;
+  // スクショは1枚ごとの移動が大きいので広めに探す（最低でも1割は重なっている前提）
+  const maxDy = Math.floor(h * (src.kind === 'image' ? 0.9 : 0.75));
+  let best = 0, bestC = Infinity;
+  for (let dy = 0; dy <= maxDy; dy += 2) {
+    const c = cost(A, B, top, bot, dy, 3, 2);
+    // 重なりが小さいほど偶然一致しやすいので、わずかに不利にする
+    const pen = c + dy / h * 0.6;
+    if (pen < bestC) { bestC = pen; best = dy; }
+  }
+  let fine = best, fineC = Infinity;
+  for (let dy = Math.max(0, best - 3); dy <= Math.min(maxDy, best + 3); dy++) {
+    const c = cost(A, B, top, bot, dy, 1, 1);
+    if (c < fineC) { fineC = c; fine = dy; }
+  }
+  return { dy: fine, c: fineC };
+}
+
+// ---------- 合成 ----------
+async function compose() {
+  const { W, H } = src;
+  const { top, bot } = region;
+  const rh = bot - top;
+  // 取り込んだ順に、直前に採用した画面からのスクロール量を求める
+  const used = [{ k: 0, Y: 0 }];
+  let ref = 0, skipped = 0;
+  for (let k = 1; k < sigs.length; k++) {
+    const { dy, c } = findOffset(sigs[ref], sigs[k], top, bot);
+    if (c > 3) { skipped++; continue; }       // 一致しない（速すぎ・演出中など）
+    if (dy < 2) continue;                      // ほぼ動いていない
+    used.push({ k, Y: used[used.length - 1].Y + dy, d: dy });
+    ref = k;
+    if (k % 5 === 0) { status(`つなぎ目を探しています… ${k}/${sigs.length}`); prog(0.6 + k / sigs.length * 0.25); await tick(); }
+  }
+
+  const keepHeader = $('keepHeader').checked, keepFooter = $('keepFooter').checked;
+  const headH = keepHeader ? top : 0;
+  const footH = keepFooter ? H - bot : 0;
+  const last = used[used.length - 1];
+  let outH = headH + last.Y + rh + footH;
+  // ブラウザのキャンバス上限に収める
+  const limitArea = 16_000_000, limitH = 16_000;
+  const scale = Math.min(1, limitH / outH, Math.sqrt(limitArea / (W * outH)));
+  const out = makeCanvas(Math.round(W * scale), Math.round(outH * scale));
+  const octx = out.getContext('2d');
+  octx.scale(scale, scale);
+  octx.imageSmoothingQuality = 'high';
+
+  const fc = makeCanvas(W, H), fctx = fc.getContext('2d');
+  // 範囲の下端すれすれは境目の色が混ざりやすいので、少し内側で継ぐ
+  const m = Math.min(6, Math.floor(rh / 10));
+  for (let u = 0; u < used.length; u++) {
+    const { k, Y, d } = used[u];
+    const isLast = u === used.length - 1;
+    const tail = isLast ? 0 : m;
+    await src.draw(frameIdx[k], fctx);
+    if (u === 0) {
+      if (headH) octx.drawImage(fc, 0, 0, W, top, 0, 0, W, top);
+      octx.drawImage(fc, 0, top, W, rh - tail, 0, headH, W, rh - tail);
+    } else {
+      // 新しく見えた下の部分だけを足す
+      const h = d + m - tail;
+      octx.drawImage(fc, 0, bot - m - d, W, h, 0, headH + Y + rh - m - d, W, h);
+    }
+    if (u === used.length - 1 && footH) {
+      octx.drawImage(fc, 0, bot, W, footH, 0, headH + last.Y + rh, W, footH);
+    }
+    status(`画像を組み立てています… ${u + 1}/${used.length}`);
+    prog(0.85 + (u + 1) / used.length * 0.15);
+    if (u % 3 === 0) await tick();
+  }
+
+  resultBlob = await new Promise(r => out.toBlob(r, 'image/png'));
+  if (resultUrl) URL.revokeObjectURL(resultUrl);
+  resultUrl = URL.createObjectURL(resultBlob);
+  $('outImg').src = resultUrl;
+  $('dl').href = resultUrl;
+  const file = new File([resultBlob], 'inshi_stamp.png', { type: 'image/png' });
+  $('share').hidden = !(navigator.canShare && navigator.canShare({ files: [file] }));
+  $('result').hidden = false;
+  let msg = `完成しました（${used.length}枚の画面をつなぎました${scale < 1 ? '。長すぎたので少し縮小しています' : ''}）。`;
+  if (src.kind === 'image' && skipped) msg = `${skipped}枚のスクショは前の画像との重なりが見つからず、使えませんでした。前の画像と3割くらい重なるように撮ってください。`;
+  else if (src.kind === 'video' && used.length < 2) msg = 'スクロールを見つけられませんでした。下の「スクロール範囲の調整」を試すか、ゆっくり撮り直してください。';
+  else if (skipped > used.length) msg += ' つなげなかった画面が多めです。ずれていたら、もう少しゆっくりスクロールして撮り直してください。';
+  status(msg, used.length < 2 || (src.kind === 'image' && skipped > 0));
+  $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+$('share').addEventListener('click', async () => {
+  if (!resultBlob) return;
+  const file = new File([resultBlob], 'inshi_stamp.png', { type: 'image/png' });
+  try { await navigator.share({ files: [file] }); } catch (_) {}
+});
+
+// ---------- 範囲調整 ----------
+async function setupAdjust() {
+  const { W, H } = src;
+  const pv = $('preview');
+  pv.width = W; pv.height = H;
+  const base = makeCanvas(W, H);
+  await src.draw(frameIdx[0] ?? 0, base.getContext('2d'));
+  const topR = $('topR'), botR = $('botR');
+  topR.max = botR.max = H;
+  topR.value = region.top; botR.value = region.bot;
+  const paint = () => {
+    const ctx = pv.getContext('2d');
+    ctx.drawImage(base, 0, 0);
+    const t = +topR.value, b = +botR.value;
+    ctx.fillStyle = 'rgba(0,0,0,.45)';
+    ctx.fillRect(0, 0, W, t); ctx.fillRect(0, b, W, H - b);
+    ctx.fillStyle = '#4fae2c';
+    ctx.fillRect(0, t - 3, W, 6); ctx.fillRect(0, b - 3, W, 6);
+    $('topVal').textContent = t; $('botVal').textContent = b;
+  };
+  topR.oninput = botR.oninput = paint;
+  paint();
+  $('adjust').hidden = false;
+}
+})();
+</script>
+</body>
+</html>
