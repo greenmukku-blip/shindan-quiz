@@ -37,6 +37,7 @@ body.dragging .drop{border-style:solid}
 #fileName{margin-top:8px;font-size:.88rem;color:var(--muted);word-break:break-all}
 details{margin-top:12px;font-size:.92rem}
 summary{cursor:pointer;color:var(--muted)}
+#adjust[open] summary{margin-bottom:8px}
 .row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0}
 .row input[type=number],.row select{width:110px;padding:6px;border:1px solid var(--line);border-radius:8px;
   background:var(--bg);color:var(--text);font-size:.95rem}
@@ -87,17 +88,6 @@ ol.how{padding-left:1.3em;margin:6px 0 0;font-size:.9rem}
     <div id="status"></div>
   </section>
 
-  <section class="card" id="adjust" hidden>
-    <h2>スクロール範囲の調整</h2>
-    <p class="note">緑の線の間がスクロールする部分です。つなぎ目がずれる・上下が欠けるときは動かして「作り直す」を押してください。</p>
-    <div class="preview-wrap"><canvas id="preview"></canvas></div>
-    <div class="row"><span>上端</span><span id="topVal"></span></div>
-    <input type="range" id="topR" min="0" max="100" value="0">
-    <div class="row"><span>下端</span><span id="botVal"></span></div>
-    <input type="range" id="botR" min="0" max="100" value="100">
-    <button id="rerun" class="wide sub">この範囲で作り直す</button>
-  </section>
-
   <section class="card" id="result" hidden>
     <h2>できあがり</h2>
     <img id="outImg" alt="つなげた因子一覧の画像">
@@ -107,6 +97,17 @@ ol.how{padding-left:1.3em;margin:6px 0 0;font-size:.9rem}
     </div>
     <p class="note">iPhoneで「保存する」がうまくいかないときは、画像を長押しして「"写真"に保存」を選んでください。</p>
   </section>
+
+  <details class="card" id="adjust" hidden>
+    <summary>つなぎ目がずれたとき（範囲を手動で調整）</summary>
+    <p class="note">緑の線の間がスクロールする部分です。ずれる・上下が欠けるときは動かして「作り直す」を押してください。</p>
+    <div class="preview-wrap"><canvas id="preview"></canvas></div>
+    <div class="row"><span>上端</span><span id="topVal"></span></div>
+    <input type="range" id="topR" min="0" max="100" value="0">
+    <div class="row"><span>下端</span><span id="botVal"></span></div>
+    <input type="range" id="botR" min="0" max="100" value="100">
+    <button id="rerun" class="wide sub">この範囲で作り直す</button>
+  </details>
 
   <section class="card">
     <h2>使い方</h2>
@@ -446,10 +447,12 @@ async function compose() {
   $('result').hidden = false;
   let msg = `完成しました（${used.length}枚の画面をつなぎました${scale < 1 ? '。長すぎたので少し縮小しています' : ''}）。`;
   if (src.kind === 'image' && skipped) msg = `${skipped}枚のスクショは前の画像との重なりが見つからず、使えませんでした。前の画像と3割くらい重なるように撮ってください。`;
-  else if (src.kind === 'video' && used.length < 2) msg = 'スクロールを見つけられませんでした。下の「スクロール範囲の調整」を試すか、ゆっくり撮り直してください。';
+  else if (src.kind === 'video' && used.length < 2) msg = 'スクロールを見つけられませんでした。下の「つなぎ目がずれたとき」で範囲を調整するか、ゆっくり撮り直してください。';
   else if (skipped > used.length) msg += ' つなげなかった画面が多めです。ずれていたら、もう少しゆっくりスクロールして撮り直してください。';
   if (cut) msg += ' 下の継承履歴はカットしました。';
-  status(msg, used.length < 2 || (src.kind === 'image' && skipped > 0));
+  const failed = used.length < 2 || (src.kind === 'image' && skipped > 0);
+  $('adjust').open = failed;
+  status(msg, failed);
   $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
